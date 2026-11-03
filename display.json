@@ -1,0 +1,8 @@
+{
+  "name": "Block Buddy & Symbol Editor",
+  "icon": "📦",
+  "group": "Design",
+  "subGroup": "Schematic & CAD",
+  "description": "Block Buddy & Symbol Inspector: inspect and configure schematic flow blocks, vector glyph strokes, port terminals (Audio, Video, Control, Power), port sides (Top, Bottom, Left, Right), and signal flow direction.",
+  "app": "APK:Softapps/EDITORS/EDITORS.BlockBuddy/index.html"
+}
