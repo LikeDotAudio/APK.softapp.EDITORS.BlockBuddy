@@ -3,70 +3,201 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Block Buddy & Symbol Editor — APK.audio</title>
+  <title>Block Buddy & Symbol Editor · Standalone Block Editor</title>
+  <link rel="stylesheet" href="./css/theme.css">
   <style>
-    body { font-family: -apple-system, sans-serif; background: #0f1218; color: #e2e8f0; margin: 0; padding: 20px; }
-    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #283348; padding-bottom: 12px; margin-bottom: 20px; }
-    .layout { display: flex; gap: 24px; }
-    .preview { flex: 1; height: 380px; background: #171d27; border: 1px solid #2d384e; border-radius: 8px; display: flex; justify-content: center; align-items: center; position: relative; }
-    .block-box { width: 220px; height: 140px; background: #222938; border: 2px solid #38bdf8; border-radius: 6px; position: relative; display: flex; justify-content: center; align-items: center; }
-    .port-pin { position: absolute; width: 10px; height: 10px; background: #38bdf8; border-radius: 2px; }
-    .sidebar { width: 320px; background: #171d27; border: 1px solid #283348; border-radius: 8px; padding: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
-    th, td { text-align: left; padding: 6px; border-bottom: 1px solid #222c3d; }
-    button { background: #0284c7; color: #fff; border: 1px solid #38bdf8; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .block-editor-container {
+      display: grid;
+      grid-template-rows: auto 1fr 240px;
+      height: calc(100vh - 40px);
+      overflow: hidden;
+    }
+
+    .top-properties-bar {
+      background: var(--osc-bg-surface);
+      border-bottom: 1px solid var(--osc-border-default);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .form-group-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group-inline label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--osc-text-muted);
+      text-transform: uppercase;
+    }
+
+    .canvas-stage {
+      background: radial-gradient(circle at 50% 50%, #151F38 0%, #080C16 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .canvas-stage svg {
+      max-width: 90%;
+      max-height: 90%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      border-radius: 4px;
+    }
+
+    .data-grid-panel {
+      background: var(--osc-bg-surface);
+      border-top: 1px solid var(--osc-border-default);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .data-grid-header {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--osc-border-default);
+      background: var(--osc-bg-surface-hover);
+    }
+
+    .data-table-container {
+      flex: 1;
+      overflow: auto;
+    }
+
+    table.pin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    table.pin-table th {
+      position: sticky;
+      top: 0;
+      background: var(--osc-bg-input);
+      color: var(--osc-text-muted);
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--osc-border-default);
+      font-weight: 600;
+      z-index: 2;
+    }
+
+    table.pin-table td {
+      padding: 2px 4px;
+      border-bottom: 1px solid var(--osc-border-default);
+    }
+
+    .cell-input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--osc-text-primary);
+      padding: 4px 6px;
+      font-size: 11px;
+      border-radius: 2px;
+      font-family: inherit;
+    }
+
+    .cell-input:focus {
+      background: var(--osc-bg-input);
+      border-color: var(--osc-accent-primary);
+      outline: none;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .col-idx {
+      width: 45px;
+    }
+
+    .col-actions {
+      width: 45px;
+      text-align: center;
+    }
   </style>
 </head>
-<body>
-  <header>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <span style="font-size:20px;">📦</span>
-      <h2>Block Buddy & Symbol Editor</h2>
+<body class="theme-deep-horizon">
+  <header class="app-window-header">
+    <div class="window-title-group">
+      <span class="window-dot"></span>
+      <span class="window-title">Block Buddy & Schematic Symbol Editor</span>
+      <span class="window-pill" id="block-tag">STANDALONE BLOCK EDITOR</span>
     </div>
-    <button id="btn-export">Export Symbol JSON</button>
+    <div class="window-actions">
+      <button class="btn btn-secondary" id="btn-sync-discovered" title="Load live block from Discovered Project">
+        <span class="btn-icon">⚡</span> Discovered
+      </button>
+      <button class="btn btn-secondary" id="btn-open" title="Open block JSON">
+        <span class="btn-icon">📂</span> Open
+      </button>
+      <button class="btn btn-primary" id="btn-save" title="Save & Return modified block to caller">
+        <span class="btn-icon">💾</span> Save & Return
+      </button>
+      <button class="btn btn-icon" id="btn-close" title="Close Editor">✕</button>
+    </div>
   </header>
 
-  <div class="layout">
-    <div class="preview">
-      <div class="block-box">
-        <div style="font-weight:700; color:#fff;" id="block-name">FLOW_PROCESS</div>
-        <!-- Pins -->
-        <div class="port-pin" style="left:-6px; top:50%; transform:translateY(-50%); background:#34d399;" title="INPUT"></div>
-        <div class="port-pin" style="right:-6px; top:50%; transform:translateY(-50%); background:#38bdf8;" title="OUTPUT"></div>
-        <div class="port-pin" style="top:-6px; left:50%; transform:translateX(-50%); background:#fbbf24;" title="CONTROL"></div>
-        <div class="port-pin" style="bottom:-6px; left:50%; transform:translateX(-50%); background:#ef4444;" title="POWER"></div>
+  <div class="block-editor-container">
+    <div class="top-properties-bar">
+      <div class="form-group-inline">
+        <label for="input-block-name">Symbol Name:</label>
+        <input type="text" id="input-block-name" class="input" style="width:180px;" value="DSP_CORE">
+      </div>
+      <div class="form-group-inline">
+        <label for="input-block-kind">Kind / Type:</label>
+        <input type="text" id="input-block-kind" class="input" style="width:160px;" value="audio.dsp">
+      </div>
+      <div class="form-group-inline">
+        <label for="input-block-w">W:</label>
+        <input type="number" id="input-block-w" class="input" style="width:70px;" value="240">
+      </div>
+      <div class="form-group-inline">
+        <label for="input-block-h">H:</label>
+        <input type="number" id="input-block-h" class="input" style="width:70px;" value="160">
       </div>
     </div>
 
-    <div class="sidebar">
-      <h3 style="font-size:14px; text-transform:uppercase; color:#94a3b8;">Terminal Ports</h3>
-      <table>
-        <thead>
-          <tr><th>Pin</th><th>Side</th><th>Signal</th></tr>
-        </thead>
-        <tbody id="port-rows"></tbody>
-      </table>
-    </div>
+    <main class="canvas-stage">
+      <div id="symbol-preview-stage"></div>
+    </main>
+
+    <section class="data-grid-panel">
+      <div class="data-grid-header">
+        <span style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--osc-text-muted);">
+          Pin Terminals & Port Connectors (Live Editable)
+        </span>
+        <button class="btn btn-primary btn-sm" id="btn-add-pin">+ Add Pin Terminal</button>
+      </div>
+      <div class="data-table-container">
+        <table class="pin-table">
+          <thead>
+            <tr>
+              <th class="col-idx text-center">#</th>
+              <th>Pin Identifier / Label</th>
+              <th style="width:120px;">Chassis Side</th>
+              <th style="width:120px;">Direction</th>
+              <th>Signal Format</th>
+              <th class="col-actions">Act</th>
+            </tr>
+          </thead>
+          <tbody id="pin-table-body"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
-  <script type="module">
-    import { BlockDefinitionModel } from './js/blockApp.js';
-    const model = new BlockDefinitionModel('flow.process', 'FLOW_PROCESS');
-
-    const tbody = document.getElementById('port-rows');
-    model.ports.forEach(p => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td><b>${p.id}</b></td><td>${p.side}</td><td>${p.format}</td>`;
-      tbody.appendChild(tr);
-    });
-
-    document.getElementById('btn-export').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${model.name}.json`;
-      a.click();
-    });
-  </script>
+  <script type="module" src="./js/blockBuddyApp.js"></script>
 </body>
 </html>
