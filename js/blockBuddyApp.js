@@ -153,9 +153,9 @@ export class BlockBuddyApp {
     const svgH = h + pad * 2;
 
     // Body
-    parts.push(`<rect x="${pad}" y="${pad}" width="${w}" height="${h}" rx="6" fill="#121A2F" stroke="#2D3D60" stroke-width="1.5"/>`);
+    parts.push(`<rect x="${pad}" y="${pad}" width="${w}" height="${h}" rx="6" fill="#18181b" stroke="#3f3f46" stroke-width="1.5"/>`);
     parts.push(`<text x="${pad + w / 2}" y="${pad + h / 2 - 4}" fill="#F4902C" font-size="14" font-weight="bold" text-anchor="middle" font-family="sans-serif">${this.block.name}</text>`);
-    parts.push(`<text x="${pad + w / 2}" y="${pad + h / 2 + 12}" fill="#8B9BB4" font-size="10" text-anchor="middle" font-family="monospace">${this.block.kind}</text>`);
+    parts.push(`<text x="${pad + w / 2}" y="${pad + h / 2 + 12}" fill="#888888" font-size="10" text-anchor="middle" font-family="monospace">${this.block.kind}</text>`);
 
     // Helper for pins
     const drawPins = (list, side) => {
@@ -187,7 +187,7 @@ export class BlockBuddyApp {
           parts.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${py + 14}" stroke="#EF4444" stroke-width="1.5"/>`);
           parts.push(`<circle cx="${px}" cy="${py + 14}" r="3" fill="#EF4444"/>`);
         }
-        parts.push(`<text x="${lx}" y="${ly}" fill="#F0F4F8" font-size="9" font-weight="600" text-anchor="${anchor}" font-family="monospace">${p.id}</text>`);
+        parts.push(`<text x="${lx}" y="${ly}" fill="#f4f4f5" font-size="9" font-weight="600" text-anchor="${anchor}" font-family="monospace">${p.id}</text>`);
       });
     };
 
