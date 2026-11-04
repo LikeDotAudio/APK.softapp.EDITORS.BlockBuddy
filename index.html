@@ -1,203 +1,252 @@
 <!DOCTYPE html>
+<!-- Part of the APK.audio project — http://APK.audio — made by Anthony Kuzub -->
+<!-- MIT Licence. Free, for everyone, for ever. Full text in LICENSE at the root. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Block Buddy & Symbol Editor · Standalone Block Editor</title>
+  <title>Block Buddy & Device Schematic Symbol Editor</title>
   <link rel="stylesheet" href="./vendor/apk-contracts/apk-tokens.css">
   <link rel="stylesheet" href="./css/theme.css">
   <style>
     .block-editor-container {
-      display: grid;
-      grid-template-rows: auto 1fr 240px;
-      height: calc(100vh - 40px);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
       overflow: hidden;
     }
 
-    .top-properties-bar {
-      background: var(--osc-bg-surface);
-      border-bottom: 1px solid var(--osc-border-default);
-      padding: 10px 14px;
+    .device-toolbar-row {
       display: flex;
       align-items: center;
-      gap: 16px;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 12px;
+      background: var(--osc-bg-surface);
+      border-bottom: 1px solid var(--osc-border-default);
+      flex-wrap: wrap;
+    }
+
+    .device-toolbar-row-sub {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 12px;
+      background: var(--osc-bg-input);
+      border-bottom: 1px solid var(--osc-border-default);
+      flex-wrap: wrap;
     }
 
     .form-group-inline {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .form-group-inline label {
-      font-size: 11px;
-      font-weight: 600;
+      font-size: 10px;
+      font-weight: 700;
       color: var(--osc-text-muted);
       text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
     }
 
-    .canvas-stage {
-      background: radial-gradient(circle at 50% 50%, #1e1e24 0%, #121212 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      overflow: auto;
-    }
-
-    .canvas-stage svg {
-      max-width: 90%;
-      max-height: 90%;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-      border-radius: 4px;
-    }
-
-    .data-grid-panel {
-      background: var(--osc-bg-surface);
-      border-top: 1px solid var(--osc-border-default);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .data-grid-header {
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 12px;
-      border-bottom: 1px solid var(--osc-border-default);
-      background: var(--osc-bg-surface-hover);
-    }
-
-    .data-table-container {
-      flex: 1;
-      overflow: auto;
-    }
-
-    table.pin-table {
-      width: 100%;
-      border-collapse: collapse;
+    .input-sm {
+      padding: 3px 6px;
       font-size: 11px;
     }
 
-    table.pin-table th {
-      position: sticky;
-      top: 0;
-      background: var(--osc-bg-input);
-      color: var(--osc-text-muted);
-      padding: 6px 8px;
-      text-align: left;
-      border-bottom: 1px solid var(--osc-border-default);
+    .select-device-picker {
       font-weight: 600;
-      z-index: 2;
+      color: var(--osc-accent-primary);
+      min-width: 220px;
     }
 
-    table.pin-table td {
-      padding: 2px 4px;
-      border-bottom: 1px solid var(--osc-border-default);
+    .bulk-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .cell-input {
-      width: 100%;
+    .tab-filter-btn {
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 3px;
       background: transparent;
       border: 1px solid transparent;
+      color: var(--osc-text-muted);
+      cursor: pointer;
+    }
+
+    .tab-filter-btn:hover {
       color: var(--osc-text-primary);
-      padding: 4px 6px;
-      font-size: 11px;
-      border-radius: 2px;
-      font-family: inherit;
+      background: var(--osc-bg-surface);
     }
 
-    .cell-input:focus {
+    .tab-filter-btn.active {
+      color: var(--osc-accent-primary);
       background: var(--osc-bg-input);
-      border-color: var(--osc-accent-primary);
-      outline: none;
+      border-color: var(--osc-border-default);
     }
 
-    .text-center {
-      text-align: center;
+    .port-item-row {
+      transition: background-color 0.15s ease;
     }
 
-    .col-idx {
-      width: 45px;
+    .port-item-row.selected {
+      background: rgba(244, 144, 44, 0.15) !important;
     }
 
-    .col-actions {
-      width: 45px;
-      text-align: center;
+    .cad-icon-svg {
+      vertical-align: middle;
+      display: inline-block;
     }
   </style>
 </head>
-<body class="theme-deep-horizon">
+<body class="apk-softapp-env">
+  <!-- Top Editor Lifecycle Window Bar -->
   <header class="app-window-header">
     <div class="window-title-group">
       <span class="window-dot"></span>
-      <span class="window-title">Block Buddy & Schematic Symbol Editor</span>
-      <span class="window-pill" id="block-tag">STANDALONE BLOCK EDITOR</span>
+      <span class="window-title">Block Buddy & Device Schematic Symbol Editor</span>
+      <span class="window-pill" id="device-source-badge">⚡ DISCOVERED BENCH DEVICE</span>
+      <span class="window-pill-category" id="device-kind-badge">Audio DSP</span>
     </div>
     <div class="window-actions">
-      <button class="btn btn-secondary" id="btn-sync-discovered" title="Load live block from Discovered Project">
-        <span class="btn-icon">⚡</span> Discovered
+      <button class="btn btn-secondary btn-sm" id="btn-sync-discovered" title="Reload live inventory from Discovered Project">
+        <span class="btn-icon">⚡</span> Sync Discovered
       </button>
-      <button class="btn btn-secondary" id="btn-open" title="Open block JSON">
+      <button class="btn btn-secondary btn-sm" id="btn-open" title="Open block or device definition JSON">
         <span class="btn-icon">📂</span> Open
       </button>
-      <button class="btn btn-primary" id="btn-save" title="Save & Return modified block to caller">
+      <button class="btn btn-primary btn-sm" id="btn-save" title="Save device symbol and return to caller">
         <span class="btn-icon">💾</span> Save & Return
       </button>
-      <button class="btn btn-icon" id="btn-close" title="Close Editor">✕</button>
+      <button class="btn btn-icon btn-sm" id="btn-close" title="Close Editor">✕</button>
     </div>
   </header>
 
-  <div class="block-editor-container">
-    <div class="top-properties-bar">
+  <!-- Device Selection & Primary Properties Toolbar -->
+  <div class="device-toolbar-row">
+    <div class="toolbar-group">
       <div class="form-group-inline">
-        <label for="input-block-name">Symbol Name:</label>
-        <input type="text" id="input-block-name" class="input" style="width:180px;" value="DSP_CORE">
+        <label for="select-device">ACTIVE DEVICE:</label>
+        <select id="select-device" class="select select-device-picker">
+          <!-- Populated dynamically with Discovered bench items and Pro AV catalog -->
+        </select>
+      </div>
+
+      <button class="btn btn-secondary btn-sm" id="btn-new-device" title="Create a new device from scratch">
+        + New Device
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-clone-device" title="Clone active device into custom library">
+        📋 Clone
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <div class="form-group-inline">
+        <label for="input-device-name">SYMBOL ID:</label>
+        <input type="text" id="input-device-name" class="input input-sm" style="width: 140px; font-weight: 600;" value="Desk_preMO">
       </div>
       <div class="form-group-inline">
-        <label for="input-block-kind">Kind / Type:</label>
-        <input type="text" id="input-block-kind" class="input" style="width:160px;" value="audio.dsp">
+        <label for="input-device-make">MAKE:</label>
+        <input type="text" id="input-device-make" class="input input-sm" style="width: 110px;" value="APK Audio">
       </div>
       <div class="form-group-inline">
-        <label for="input-block-w">W:</label>
-        <input type="number" id="input-block-w" class="input" style="width:70px;" value="240">
+        <label for="input-device-model">MODEL:</label>
+        <input type="text" id="input-device-model" class="input input-sm" style="width: 130px;" value="preMO Mark II">
       </div>
       <div class="form-group-inline">
-        <label for="input-block-h">H:</label>
-        <input type="number" id="input-block-h" class="input" style="width:70px;" value="160">
+        <label for="select-device-kind">KIND:</label>
+        <select id="select-device-kind" class="select input-sm" style="width: 120px;">
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Physical & Schematic Geometry Toolbar -->
+  <div class="device-toolbar-row-sub">
+    <div class="form-group-inline">
+      <label for="input-device-ru">FORM FACTOR:</label>
+      <input type="text" id="input-device-ru" class="input input-sm" style="width: 110px;" value="2U Rackmount">
+    </div>
+    <div class="form-group-inline">
+      <label for="input-block-w">BLOCK WIDTH (PX):</label>
+      <input type="number" id="input-block-w" class="input input-sm" style="width: 65px;" value="320" min="160" max="800" step="10">
+    </div>
+    <div class="form-group-inline">
+      <label for="input-block-h">BLOCK HEIGHT (PX):</label>
+      <input type="number" id="input-block-h" class="input input-sm" style="width: 65px;" value="240" min="120" max="800" step="10">
+    </div>
+    <div class="form-group-inline" style="margin-left: auto;">
+      <span style="font-size: 10px; color: var(--osc-text-muted);">
+        Interactive: Click any pin terminal on block or row below to edit
+      </span>
+    </div>
+  </div>
+
+  <!-- Main Schematic Symbol Canvas Stage -->
+  <main class="canvas-stage" id="canvas-stage">
+    <div id="symbol-preview-stage" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+      <!-- Live SVG Schematic Block Rendered Here -->
+    </div>
+  </main>
+
+  <!-- Pin Terminals & Port Connectors Data Grid Panel -->
+  <section class="data-grid-panel">
+    <div class="data-grid-header">
+      <div class="data-grid-title">
+        <span>⚡ PIN TERMINALS & PORT CONNECTORS</span>
+        <span class="window-pill" id="port-count-badge">0 PINS</span>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="bulk-actions-group">
+        <button class="tab-filter-btn active" data-filter="all">All</button>
+        <button class="tab-filter-btn" data-filter="left">Left (Inputs)</button>
+        <button class="tab-filter-btn" data-filter="right">Right (Outputs)</button>
+        <button class="tab-filter-btn" data-filter="top">Top (Bus/Clock)</button>
+        <button class="tab-filter-btn" data-filter="bottom">Bottom (Power)</button>
+      </div>
+
+      <!-- Bulk Presets & Add Port -->
+      <div class="bulk-actions-group">
+        <button class="btn btn-secondary btn-sm" id="btn-bulk-in8" title="Add 8 Analog Audio Inputs to Left Side">+ 8 Inputs</button>
+        <button class="btn btn-secondary btn-sm" id="btn-bulk-out8" title="Add 8 Analog Audio Outputs to Right Side">+ 8 Outputs</button>
+        <button class="btn btn-secondary btn-sm" id="btn-bulk-dante" title="Add Dante Primary & Secondary to Top Side">+ Dante Net</button>
+        <button class="btn btn-secondary btn-sm" id="btn-bulk-pwr" title="Add AC Power & Ground to Bottom Side">+ Power</button>
+        <button class="btn btn-primary btn-sm" id="btn-add-pin" title="Add a single new port">+ Add Port</button>
       </div>
     </div>
 
-    <main class="canvas-stage">
-      <div id="symbol-preview-stage"></div>
-    </main>
+    <!-- Data Table -->
+    <div class="data-table-container">
+      <table class="pin-table">
+        <thead>
+          <tr>
+            <th class="col-idx text-center">#</th>
+            <th style="width: 140px;">Pin Identifier</th>
+            <th>Display Label</th>
+            <th style="width: 110px;">Chassis Side</th>
+            <th style="width: 110px;">Direction</th>
+            <th style="width: 150px;">Signal Format</th>
+            <th style="width: 140px;">CAD Connector</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pin-table-body">
+          <!-- Live editable rows populated by BlockBuddyApp -->
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-    <section class="data-grid-panel">
-      <div class="data-grid-header">
-        <span style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--osc-text-muted);">
-          Pin Terminals & Port Connectors (Live Editable)
-        </span>
-        <button class="btn btn-primary btn-sm" id="btn-add-pin">+ Add Pin Terminal</button>
-      </div>
-      <div class="data-table-container">
-        <table class="pin-table">
-          <thead>
-            <tr>
-              <th class="col-idx text-center">#</th>
-              <th>Pin Identifier / Label</th>
-              <th style="width:120px;">Chassis Side</th>
-              <th style="width:120px;">Direction</th>
-              <th>Signal Format</th>
-              <th class="col-actions">Act</th>
-            </tr>
-          </thead>
-          <tbody id="pin-table-body"></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
+  <!-- Vector CAD Connector Symbol Sheet (Loaded for visual rendering) -->
+  <div id="cad-symbols-container" style="display: none;"></div>
 
   <script type="module" src="./js/blockBuddyApp.js"></script>
 </body>
