@@ -13,6 +13,7 @@ import {
   formatColorForSignal,
 } from './deviceCatalog.js';
 import { CAD_SYMBOLS_SVG_SHEET } from './cadConnectorSymbols.js';
+import { interpretToBlock } from './universalBlockInterpreter.js';
 
 export class BlockBuddyApp {
   constructor() {
@@ -78,6 +79,19 @@ export class BlockBuddyApp {
     this.btnBulkPwr = document.getElementById('btn-bulk-pwr');
 
     this.filterButtons = document.querySelectorAll('.tab-filter-btn');
+
+    // Ingest Modal Elements
+    this.btnIngest = document.getElementById('btn-ingest');
+    this.modalIngest = document.getElementById('modal-ingest');
+    this.btnCloseIngest = document.getElementById('btn-close-ingest-modal');
+    this.btnCancelIngest = document.getElementById('btn-cancel-ingest');
+    this.btnExecuteIngest = document.getElementById('btn-execute-ingest');
+    this.ingestTextarea = document.getElementById('ingest-textarea');
+
+    this.presetMixer = document.getElementById('preset-mixer');
+    this.presetRoutes = document.getElementById('preset-routes');
+    this.presetSwitch = document.getElementById('preset-switch');
+    this.presetCsv = document.getElementById('preset-csv');
   }
 
   populateKindPicker() {
@@ -252,6 +266,110 @@ export class BlockBuddyApp {
       this.render();
       this.bridge.notifyChanged();
     });
+
+    // Ingest Modal & Presets
+    this.btnIngest?.addEventListener('click', () => {
+      if (this.modalIngest) this.modalIngest.style.display = 'flex';
+    });
+
+    this.btnCloseIngest?.addEventListener('click', () => {
+      if (this.modalIngest) this.modalIngest.style.display = 'none';
+    });
+
+    this.btnCancelIngest?.addEventListener('click', () => {
+      if (this.modalIngest) this.modalIngest.style.display = 'none';
+    });
+
+    this.btnExecuteIngest?.addEventListener('click', () => {
+      const text = this.ingestTextarea?.value || '';
+      if (!text.trim()) return;
+      this.ingestArbitraryData(text);
+      if (this.modalIngest) this.modalIngest.style.display = 'none';
+    });
+
+    this.presetMixer?.addEventListener('click', () => {
+      if (this.ingestTextarea) {
+        this.ingestTextarea.value = JSON.stringify({
+          name: 'STUDIO_CONSOLE_8X4',
+          make: 'Soundcraft',
+          model: 'Signature 8',
+          kind: 'Audio DSP',
+          inputs: ['Mic_1', 'Mic_2', 'Mic_3', 'Mic_4', 'Stereo_5_6_L', 'Stereo_5_6_R', 'Stereo_7_8_L', 'Stereo_7_8_R'],
+          outputs: ['Master_L', 'Master_R', 'Aux_1_Mon', 'Aux_2_FX'],
+          control: ['USB_Audio_14x4', 'Footswitch_FX_Mute'],
+          power: ['AC_Mains_120V']
+        }, null, 2);
+      }
+    });
+
+    this.presetRoutes?.addEventListener('click', () => {
+      if (this.ingestTextarea) {
+        this.ingestTextarea.value = JSON.stringify({
+          name: 'VIDEO_MATRIX_4K',
+          make: 'AJA',
+          model: 'KUMO 1616-12G',
+          kind: 'Video Matrix',
+          connections: [
+            { from: 'Camera_1_12G', to: 'Switcher_In_1', signal: '12G-SDI' },
+            { from: 'Camera_2_12G', to: 'Switcher_In_2', signal: '12G-SDI' },
+            { from: 'Graphics_HDMI', to: 'Converter_In', signal: 'HDMI 2.1' },
+            { from: 'Server_Play_1', to: 'Program_Feed', signal: '12G-SDI' }
+          ],
+          control: ['LAN_WebUI_Gigabit', 'RS422_Sony_Protocol'],
+          power: ['AC_Mains_Dual_Redundant']
+        }, null, 2);
+      }
+    });
+
+    this.presetSwitch?.addEventListener('click', () => {
+      if (this.ingestTextarea) {
+        this.ingestTextarea.value = JSON.stringify({
+          name: 'AV_CORE_SWITCH',
+          make: 'Cisco',
+          model: 'CBS350-24P-4G',
+          kind: 'Network Switch',
+          ports: Array.from({ length: 24 }, (_, i) => ({
+            id: `GE_${i + 1}`,
+            label: `Port ${i + 1} PoE+`,
+            side: i < 12 ? 'left' : 'right',
+            format: 'Gigabit PoE+',
+            connector: 'RJ45'
+          })).concat([
+            { id: 'SFP_25', label: '10G Fiber Uplink', side: 'top', format: '10GbE SFP+', connector: 'OpticalCON' },
+            { id: 'SFP_26', label: '10G Fiber Uplink', side: 'top', format: '10GbE SFP+', connector: 'OpticalCON' },
+            { id: 'CONSOLE', label: 'Serial Console', side: 'top', format: 'RS-232 / 422', connector: 'RJ45' },
+            { id: 'AC_MAINS', label: 'AC Mains 120/240V', side: 'bottom', format: 'AC Mains 120/240V', connector: 'IEC' }
+          ])
+        }, null, 2);
+      }
+    });
+
+    this.presetCsv?.addEventListener('click', () => {
+      if (this.ingestTextarea) {
+        this.ingestTextarea.value = `# Name, Type / Direction\nMIC_1, Analog Audio In\nMIC_2, Analog Audio In\nLINE_3, Analog Audio In\nLINE_4, Analog Audio In\nMAIN_L, Analog Audio Out\nMAIN_R, Analog Audio Out\nDANTE_PRI, Dante AES67 Network\nAC_POWER, AC Mains IEC Power`;
+      }
+    });
+
+    // Window Drag & Drop for arbitrary JSON or text files
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          this.ingestArbitraryData(re.target.result);
+        };
+        reader.readAsText(file);
+      }
+    });
+      this.render();
+      this.bridge.notifyChanged();
+    });
   }
 
   selectDeviceById(deviceId) {
@@ -334,8 +452,29 @@ export class BlockBuddyApp {
     this.render();
   }
 
+  ingestArbitraryData(raw, meta = {}) {
+    try {
+      const blockDef = interpretToBlock(raw, { defaultName: meta.title });
+      this.devices.unshift(blockDef);
+      this.activeDeviceId = blockDef.id;
+      this.block.loadDevice(blockDef);
+      this.populateDevicePicker();
+      this.render();
+      this.bridge.notifyChanged();
+      return blockDef;
+    } catch (err) {
+      console.error('Failed to interpret payload into block:', err);
+      alert('Could not interpret input data. Ensure it has valid text, JSON, inputs, outputs or connections.');
+      return null;
+    }
+  }
+
   handleBlockLoaded(block, meta = {}) {
     if (!block) return;
+    // Use universal interpreter if block has inputs/outputs/connections or isn't a standard schematic block
+    if (block.inputs || block.outputs || block.connections || block.routes || block.cables || block.pins || !block.ports) {
+      return this.ingestArbitraryData(block, meta);
+    }
     this.block.loadDevice(block);
     let matched = this.devices.find((d) => d.name === this.block.name);
     if (!matched) {
@@ -713,18 +852,13 @@ export class BlockBuddyApp {
   promptOpen() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.json,.txt,.csv,.sch';
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (re) => {
-        try {
-          const parsed = JSON.parse(re.target.result);
-          this.handleBlockLoaded(parsed, { title: file.name });
-        } catch (err) {
-          alert('Invalid JSON block file');
-        }
+        this.ingestArbitraryData(re.target.result, { title: file.name });
       };
       reader.readAsText(file);
     };

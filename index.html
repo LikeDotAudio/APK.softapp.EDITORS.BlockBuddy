@@ -103,6 +103,71 @@
       vertical-align: middle;
       display: inline-block;
     }
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-box {
+      width: 580px;
+      max-width: 90vw;
+      background: var(--osc-bg-surface);
+      border: 1px solid var(--osc-border-default);
+      border-radius: 6px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 10px 14px;
+      background: var(--osc-bg-surface-hover);
+      border-bottom: 1px solid var(--osc-border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-footer {
+      padding: 10px 14px;
+      background: var(--osc-bg-surface-hover);
+      border-top: 1px solid var(--osc-border-default);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .ingest-textarea {
+      width: 100%;
+      height: 180px;
+      background: var(--osc-bg-input);
+      border: 1px solid var(--osc-border-default);
+      border-radius: 4px;
+      color: var(--osc-text-primary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 8px;
+      resize: vertical;
+    }
+
+    .ingest-textarea:focus {
+      outline: none;
+      border-color: var(--osc-accent-primary);
+    }
   </style>
 </head>
 <body class="apk-softapp-env">
@@ -117,6 +182,9 @@
     <div class="window-actions">
       <button class="btn btn-secondary btn-sm" id="btn-sync-discovered" title="Reload live inventory from Discovered Project">
         <span class="btn-icon">⚡</span> Sync Discovered
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-ingest" title="Ingest any JSON or text with inputs/outputs/connections">
+        <span class="btn-icon">📥</span> Ingest I/O
       </button>
       <button class="btn btn-secondary btn-sm" id="btn-open" title="Open block or device definition JSON">
         <span class="btn-icon">📂</span> Open
@@ -244,6 +312,46 @@
       </table>
     </div>
   </section>
+
+  <!-- Ingest Any Input/Output/Connection Modal -->
+  <div id="modal-ingest" class="modal-backdrop" style="display: none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 14px;">📥</span>
+          <span style="font-weight: 700; font-size: 12px;">Ingest Any Inputs, Outputs & Connections</span>
+        </div>
+        <button id="btn-close-ingest-modal" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 11px; color: var(--osc-text-muted);">
+          Paste ANY payload with inputs, outputs, connections, channels, pins, or wirelists. Block Buddy automatically parses signal formats, places ports on appropriate chassis sides, and renders vector symbols.
+        </p>
+        <textarea id="ingest-textarea" class="ingest-textarea" placeholder='Paste JSON, CSV, wirelist or connections, e.g.:
+{
+  "name": "MY_PROCESSOR",
+  "inputs": ["Mic_1", "Mic_2", "Line_3", "Line_4"],
+  "outputs": ["Main_L", "Main_R", "Sub_Out"],
+  "connections": [
+    { "from": "Mic_1", "to": "EQ_1", "signal": "Analog Audio" }
+  ],
+  "control": ["WordClock_Sync", "Ethernet_1G"],
+  "power": ["AC_Mains_120V"]
+}'></textarea>
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <span style="font-size: 10px; font-weight: 700; color: var(--osc-text-muted);">PRESETS:</span>
+          <button class="btn btn-secondary btn-sm" id="preset-mixer">Audio Mixer (8 In / 4 Out)</button>
+          <button class="btn btn-secondary btn-sm" id="preset-routes">AV Routing Matrix</button>
+          <button class="btn btn-secondary btn-sm" id="preset-switch">Managed Switch (24P)</button>
+          <button class="btn btn-secondary btn-sm" id="preset-csv">Line-by-line / CSV</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-ingest" class="btn btn-secondary btn-sm">Cancel</button>
+        <button id="btn-execute-ingest" class="btn btn-primary btn-sm">⚡ Parse & Build Schematic Block</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Vector CAD Connector Symbol Sheet (Loaded for visual rendering) -->
   <div id="cad-symbols-container" style="display: none;"></div>

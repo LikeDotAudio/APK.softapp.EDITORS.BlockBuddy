@@ -14,6 +14,7 @@ import {
   formatColorForSignal,
 } from '../js/deviceCatalog.js';
 import { CAD_CONNECTOR_CATALOG, getConnectorMeta } from '../js/cadConnectorSymbols.js';
+import { interpretToBlock } from '../js/universalBlockInterpreter.js';
 
 test('Block Definition Model Initialization', () => {
   const model = new BlockDefinitionModel('Audio DSP', 'DSP_CORE');
@@ -134,4 +135,56 @@ test('Signal Color and CAD Connector Symbols Validation', () => {
     assert.ok(meta.id, `Connector id must exist for ${conn}`);
     assert.ok(meta.label, `Connector label must exist for ${conn}`);
   });
+});
+
+test('Universal Block Interpreter: Arbitrary Inputs, Outputs & Connections', () => {
+  // Case 1: Simple inputs & outputs arrays
+  const res1 = interpretToBlock({
+    name: 'SIMPLE_AMP',
+    inputs: ['Left_In', 'Right_In'],
+    outputs: ['Left_Spk', 'Right_Spk'],
+    power: ['Mains_120V']
+  });
+  assert.equal(res1.name, 'SIMPLE_AMP');
+  assert.equal(res1.ports.length, 5);
+  const leftPorts1 = res1.ports.filter(p => p.side === 'left');
+  const rightPorts1 = res1.ports.filter(p => p.side === 'right');
+  const pwrPorts1 = res1.ports.filter(p => p.side === 'bottom');
+  assert.equal(leftPorts1.length, 2);
+  assert.equal(rightPorts1.length, 2);
+  assert.equal(pwrPorts1.length, 1);
+
+  // Case 2: Routing / Connections matrix
+  const res2 = interpretToBlock({
+    title: 'MATRIX_ROUTER',
+    connections: [
+      { from: 'Cam1_SDI', to: 'Mon1_SDI', signal: '12G-SDI' },
+      { from: 'Cam2_SDI', to: 'Mon2_SDI', signal: '12G-SDI' },
+      { from: 'Laptop_HDMI', to: 'Projector', signal: 'HDMI 2.1' }
+    ]
+  });
+  assert.ok(res2.ports.some(p => p.id === 'Cam1_SDI' && p.side === 'left'));
+  assert.ok(res2.ports.some(p => p.id === 'Mon1_SDI' && p.side === 'right'));
+  assert.ok(res2.ports.some(p => p.id === 'Laptop_HDMI' && p.format === 'HDMI 2.1'));
+
+  // Case 3: Line-by-line CSV / text
+  const csvText = `
+    MIC_1, Analog Audio In
+    MIC_2, Analog Audio In
+    LINE_OUT_1, Analog Audio Out
+    LINE_OUT_2, Analog Audio Out
+    ETH_LAN, Gigabit PoE+
+  `;
+  const res3 = interpretToBlock(csvText, { defaultName: 'STAGE_BOX_CSV' });
+  assert.equal(res3.name, 'STAGE_BOX_CSV');
+  assert.ok(res3.ports.some(p => p.id === 'MIC_1' && p.side === 'left'));
+  assert.ok(res3.ports.some(p => p.id === 'LINE_OUT_1' && p.side === 'right'));
+
+  // Case 4: Channels count
+  const res4 = interpretToBlock({
+    name: 'CONSOLE_16CH',
+    channels: 16
+  });
+  assert.equal(res4.name, 'CONSOLE_16CH');
+  assert.equal(res4.ports.length, 32);
 });
