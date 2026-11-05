@@ -3,100 +3,21 @@
 // Authentic Vector Connector Icons Extracted Directly from EDITORS.CAD.Like.audio
 
 import { CAD_CONNECTORS, connectorIconId } from './deviceCatalog.js';
+import { VOCABULARY } from './vocabulary.js';
 
-export const CAD_CONNECTOR_CATALOG = [
-  {
-    "id": "xlr-f",
-    "label": "XLR Female",
-    "desc": "Neutrik DLX 3-Pin XLR Female Socket",
-    "color": "#10B981",
-    "category": "Audio In"
-  },
-  {
-    "id": "xlr-m",
-    "label": "XLR Male",
-    "desc": "Neutrik DLX 3-Pin XLR Male Plug",
-    "color": "#38BDF8",
-    "category": "Audio Out"
-  },
-  {
-    "id": "bnc",
-    "label": "BNC Coax",
-    "desc": "75-Ohm SDI / Word Clock BNC Bulkhead",
-    "color": "#F59E0B",
-    "category": "Video/Clock"
-  },
-  {
-    "id": "ethercon",
-    "label": "EtherCON",
-    "desc": "Neutrik EtherCON Cat6A RJ45 Receptacle",
-    "color": "#38BDF8",
-    "category": "Dante/IP"
-  },
-  {
-    "id": "rj45",
-    "label": "RJ45 LAN",
-    "desc": "Shielded Cat6A RJ45 Modular Jack",
-    "color": "#38BDF8",
-    "category": "Network"
-  },
-  {
-    "id": "opticalcon",
-    "label": "OpticalCON",
-    "desc": "Neutrik OpticalCON DUO Shuttered Fiber",
-    "color": "#EC4899",
-    "category": "Fiber"
-  },
-  {
-    "id": "speakon",
-    "label": "SpeakON",
-    "desc": "Neutrik speakON 4-Pole Loudspeaker Jack",
-    "color": "#3B82F6",
-    "category": "Speaker"
-  },
-  {
-    "id": "trs",
-    "label": "1/4\" TRS",
-    "desc": "1/4-inch (6.35mm) Balanced Phone Jack",
-    "color": "#10B981",
-    "category": "Line/Headphones"
-  },
-  {
-    "id": "hdmi",
-    "label": "HDMI 2.1",
-    "desc": "Feed-through HDMI Type A Receptacle",
-    "color": "#8B5CF6",
-    "category": "Video"
-  },
-  {
-    "id": "usbc",
-    "label": "USB-C",
-    "desc": "USB-C 3.2 Gen 2x2 Reversible Jack",
-    "color": "#6366F1",
-    "category": "Data/Power"
-  },
-  {
-    "id": "powercon",
-    "label": "PowerCON",
-    "desc": "Neutrik powerCON 20A Inlet (Blue)",
-    "color": "#EF4444",
-    "category": "AC Mains"
-  },
-  {
-    "id": "dsub25",
-    "label": "DB-25",
-    "desc": "D-Sub 25-Pin TASCAM Analog / AES59",
-    "color": "#14B8A6",
-    "category": "Multichannel"
-  },
-  {
-    "id": "blank",
-    "label": "Blank Plate",
-    "desc": "Cover plate for unused D-hole positions",
-    "color": "#52525b",
-    "category": "Cover"
-  }
-];
+const V = globalThis.APKVocabulary;
+/* The 13 icon symbols below, as data (config/vocabulary.json icons.symbols):
+   id, label, colour, and the CAD catalogue entry each one draws, which gives
+   its description and group (ROAD-3501). */
+export const CAD_CONNECTOR_CATALOG = (VOCABULARY.config.icons?.symbols || []).map((s) => {
+  const cad = s.abbreviation ? V.connector(s.abbreviation) : null;
+  return {
+    id: s.id, label: s.label, color: s.color,
+    abbreviation: cad ? cad.abbreviation : null,
+    desc: cad ? cad.description : (s.desc || s.label),
+    category: cad ? cad.group : (s.category || ''),
+  };
+});
 
 export const CAD_CONNECTOR_SYMBOLS_SVG = `
 <symbol id="cad-icon-xlr-f" viewBox="0 0 120 120"><defs>

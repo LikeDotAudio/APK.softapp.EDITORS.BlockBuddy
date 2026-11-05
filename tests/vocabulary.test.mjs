@@ -48,6 +48,8 @@ test('no connector, format or device list is typed into the app source', () => {
   const cat = read('deviceCatalog.js');
   assert.doesNotMatch(cat, /SIGNAL_FORMATS\s*=\s*\[/);
   assert.doesNotMatch(cat, /CAD_CONNECTORS\s*=\s*\[/);
+  assert.doesNotMatch(read('cadConnectorSymbols.js'), /CAD_CONNECTOR_CATALOG\s*=\s*\[/);
+  for (const s of config.icons.symbols) assert.ok(V.connector(s.abbreviation), `icon ${s.id} -> ${s.abbreviation}`);
   for (const f of readdirSync(new URL('../js/', import.meta.url))) assert.doesNotMatch(read(f), /BUILTIN_DEVICES/, f);
 });
 

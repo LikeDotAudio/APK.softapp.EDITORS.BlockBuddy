@@ -1,7 +1,26 @@
 {
-  "about": "What Block Buddy's port table offers (ROAD-3501). Connectors and formats are the CAD's catalogue (vendor/apk-vocabulary); this file picks groups, maps Block Buddy's older spellings onto catalogue entries, adds the physical signal formats the catalogue does not name (each tied to one of its signal classes), and holds the display data: which of the app's 13 icon symbols (js/cadConnectorSymbols.js) a connector is drawn with, and the colour a format is drawn in.",
+  "about": "What Block Buddy's port table offers (ROAD-3501). Connectors and formats are the CAD's catalogue (vendor/apk-vocabulary); this file picks groups, maps Block Buddy's older spellings onto catalogue entries, adds the physical signal formats the catalogue does not name (each tied to one of its signal classes), and holds the display data: which of the app's 13 icon symbols (js/cadConnectorSymbols.js) a connector is drawn with, and the colour a format is drawn in. icons.symbols is the icon set itself (id, label, colour), each tied by abbreviation to the catalogue entry that gives its description and group.",
   "connectors": {
-    "groups": ["Audio-XLR", "Audio", "Audio-Speaker", "Audio-Bloc", "Audio-Multipin", "Patchbay", "RJ-Modular", "Video", "RF", "USB", "SFP", "OC-Fiber", "LC-Fiber", "D-Sub", "WireTerminal", "Power-AC", "Power-DC", "Blank"],
+    "groups": [
+      "Audio-XLR",
+      "Audio",
+      "Audio-Speaker",
+      "Audio-Bloc",
+      "Audio-Multipin",
+      "Patchbay",
+      "RJ-Modular",
+      "Video",
+      "RF",
+      "USB",
+      "SFP",
+      "OC-Fiber",
+      "LC-Fiber",
+      "D-Sub",
+      "WireTerminal",
+      "Power-AC",
+      "Power-DC",
+      "Blank"
+    ],
     "aliases": {
       "XLR-F": "X3S",
       "XLR-M": "X3P",
@@ -10,47 +29,219 @@
     }
   },
   "formats": {
-    "groups": ["Audio-Networked", "ST-2110", "SMPTE-Audio", "AV-over-IP"],
-    "aliases": { "Dante / AES67": "DANTE" },
+    "groups": [
+      "Audio-Networked",
+      "ST-2110",
+      "SMPTE-Audio",
+      "AV-over-IP"
+    ],
+    "aliases": {
+      "Dante / AES67": "DANTE"
+    },
     "extra": [
-      { "name": "Analog Audio", "class": "physical_audio", "color": "#10B981" },
-      { "name": "AES3", "class": "physical_audio", "color": "#38BDF8" },
-      { "name": "MADI", "class": "physical_audio", "color": "#38BDF8" },
-      { "name": "HDMI 2.1", "class": "physical_video", "color": "#A855F7" },
-      { "name": "12G-SDI", "class": "physical_video", "color": "#A855F7" },
-      { "name": "Gigabit PoE+", "class": "physical_network", "color": "#38BDF8" },
-      { "name": "10GbE SFP+", "class": "physical_network", "color": "#38BDF8" },
-      { "name": "Ethernet / IP", "class": "transport_ip", "color": "#38BDF8" },
-      { "name": "RS-232 / 422", "class": "control", "color": "#F59E0B" },
-      { "name": "GPIO", "class": "control", "color": "#F59E0B" },
-      { "name": "DMX512", "class": "control", "color": "#F59E0B" },
-      { "name": "WordClock", "class": "control", "color": "#F59E0B" },
-      { "name": "RF Coax", "color": "#F59E0B" },
-      { "name": "USB 3.0 / C", "color": "#06B6D4" },
-      { "name": "AC Mains 120/240V", "class": "physical_power", "color": "#EF4444" },
-      { "name": "DC Low Voltage", "class": "physical_power", "color": "#EF4444" }
+      {
+        "name": "Analog Audio",
+        "class": "physical_audio",
+        "color": "#10B981"
+      },
+      {
+        "name": "AES3",
+        "class": "physical_audio",
+        "color": "#38BDF8"
+      },
+      {
+        "name": "MADI",
+        "class": "physical_audio",
+        "color": "#38BDF8"
+      },
+      {
+        "name": "HDMI 2.1",
+        "class": "physical_video",
+        "color": "#A855F7"
+      },
+      {
+        "name": "12G-SDI",
+        "class": "physical_video",
+        "color": "#A855F7"
+      },
+      {
+        "name": "Gigabit PoE+",
+        "class": "physical_network",
+        "color": "#38BDF8"
+      },
+      {
+        "name": "10GbE SFP+",
+        "class": "physical_network",
+        "color": "#38BDF8"
+      },
+      {
+        "name": "Ethernet / IP",
+        "class": "transport_ip",
+        "color": "#38BDF8"
+      },
+      {
+        "name": "RS-232 / 422",
+        "class": "control",
+        "color": "#F59E0B"
+      },
+      {
+        "name": "GPIO",
+        "class": "control",
+        "color": "#F59E0B"
+      },
+      {
+        "name": "DMX512",
+        "class": "control",
+        "color": "#F59E0B"
+      },
+      {
+        "name": "WordClock",
+        "class": "control",
+        "color": "#F59E0B"
+      },
+      {
+        "name": "RF Coax",
+        "color": "#F59E0B"
+      },
+      {
+        "name": "USB 3.0 / C",
+        "color": "#06B6D4"
+      },
+      {
+        "name": "AC Mains 120/240V",
+        "class": "physical_power",
+        "color": "#EF4444"
+      },
+      {
+        "name": "DC Low Voltage",
+        "class": "physical_power",
+        "color": "#EF4444"
+      }
     ]
   },
   "colors": {
     "byClass": {
-      "audio": "#38BDF8", "physical_audio": "#10B981",
-      "video": "#A855F7", "physical_video": "#A855F7",
-      "transport_ip": "#38BDF8", "physical_network": "#38BDF8",
-      "control": "#F59E0B", "ancillary": "#F59E0B",
+      "audio": "#38BDF8",
+      "physical_audio": "#10B981",
+      "video": "#A855F7",
+      "physical_video": "#A855F7",
+      "transport_ip": "#38BDF8",
+      "physical_network": "#38BDF8",
+      "control": "#F59E0B",
+      "ancillary": "#F59E0B",
       "physical_power": "#EF4444"
     },
     "default": "#94A3B8"
   },
   "icons": {
     "byConnector": {
-      "X3S": "xlr-f", "X3P": "xlr-m", "BNC": "bnc", "BNC12": "bnc", "ECON": "ethercon", "SECON": "ethercon",
-      "RJ45": "rj45", "TRSS": "trs", "TRSP": "trs", "HDMI": "hdmi", "USB-C": "usbc",
-      "PC20BS": "powercon", "PC20BP": "powercon", "PC20GS": "powercon", "PC20GP": "powercon",
-      "D25S": "dsub25", "D25P": "dsub25", "BLANK": "blank", "NONE": "blank"
+      "X3S": "xlr-f",
+      "X3P": "xlr-m",
+      "BNC": "bnc",
+      "BNC12": "bnc",
+      "ECON": "ethercon",
+      "SECON": "ethercon",
+      "RJ45": "rj45",
+      "TRSS": "trs",
+      "TRSP": "trs",
+      "HDMI": "hdmi",
+      "USB-C": "usbc",
+      "PC20BS": "powercon",
+      "PC20BP": "powercon",
+      "PC20GS": "powercon",
+      "PC20GP": "powercon",
+      "D25S": "dsub25",
+      "D25P": "dsub25",
+      "BLANK": "blank",
+      "NONE": "blank"
     },
     "byGroup": {
-      "RJ-Modular": "rj45", "Audio-Speaker": "speakon", "OC-Fiber": "opticalcon", "D-Sub": "dsub25", "Blank": "blank"
+      "RJ-Modular": "rj45",
+      "Audio-Speaker": "speakon",
+      "OC-Fiber": "opticalcon",
+      "D-Sub": "dsub25",
+      "Blank": "blank"
     },
-    "default": "blank"
+    "default": "blank",
+    "symbols": [
+      {
+        "id": "xlr-f",
+        "label": "XLR Female",
+        "color": "#10B981",
+        "abbreviation": "X3S"
+      },
+      {
+        "id": "xlr-m",
+        "label": "XLR Male",
+        "color": "#38BDF8",
+        "abbreviation": "X3P"
+      },
+      {
+        "id": "bnc",
+        "label": "BNC Coax",
+        "color": "#F59E0B",
+        "abbreviation": "BNC"
+      },
+      {
+        "id": "ethercon",
+        "label": "EtherCON",
+        "color": "#38BDF8",
+        "abbreviation": "ECON"
+      },
+      {
+        "id": "rj45",
+        "label": "RJ45 LAN",
+        "color": "#38BDF8",
+        "abbreviation": "RJ45"
+      },
+      {
+        "id": "opticalcon",
+        "label": "OpticalCON",
+        "color": "#EC4899",
+        "abbreviation": "OC2"
+      },
+      {
+        "id": "speakon",
+        "label": "SpeakON",
+        "color": "#3B82F6",
+        "abbreviation": "SPK4S"
+      },
+      {
+        "id": "trs",
+        "label": "1/4\" TRS",
+        "color": "#10B981",
+        "abbreviation": "TRSS"
+      },
+      {
+        "id": "hdmi",
+        "label": "HDMI 2.1",
+        "color": "#8B5CF6",
+        "abbreviation": "HDMI"
+      },
+      {
+        "id": "usbc",
+        "label": "USB-C",
+        "color": "#6366F1",
+        "abbreviation": "USB-C"
+      },
+      {
+        "id": "powercon",
+        "label": "PowerCON",
+        "color": "#EF4444",
+        "abbreviation": "PC20BS"
+      },
+      {
+        "id": "dsub25",
+        "label": "DB-25",
+        "color": "#14B8A6",
+        "abbreviation": "A59S"
+      },
+      {
+        "id": "blank",
+        "label": "Blank Plate",
+        "color": "#52525b",
+        "abbreviation": "BLANK"
+      }
+    ]
   }
 }
