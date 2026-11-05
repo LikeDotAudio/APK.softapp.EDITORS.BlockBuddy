@@ -879,7 +879,7 @@ export class BlockBuddyApp {
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
+  const start = () => {
     if (!window.APKSoftapp || !window.APKTable) {
       document.body.prepend(Object.assign(document.createElement('p'), {
         textContent: 'vendor/apk-softapp or vendor/apk-table did not load: this editor cannot start.',
@@ -887,5 +887,10 @@ if (typeof window !== 'undefined') {
       return;
     }
     window.blockBuddyApp = new BlockBuddyApp(window.APKSoftapp);
-  });
+  };
+  // An import with top-level await (js/vocabulary.js) finishes this module AFTER
+  // DOMContentLoaded — a listener added then never fires, and the editor never
+  // started. Start now when the document is already parsed.
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', start);
+  else start();
 }
