@@ -14,6 +14,7 @@ import {
 } from './deviceCatalog.js';
 import { CAD_SYMBOLS_SVG_SHEET } from './cadConnectorSymbols.js';
 import { interpretToBlock } from './universalBlockInterpreter.js';
+import { partToBlockDevice } from './bimPart.js';
 
 export class BlockBuddyApp {
   constructor(S) {
@@ -169,6 +170,19 @@ export class BlockBuddyApp {
       this.render();
       this.changed();
     });
+
+    // 📚 Library: any device in the BIM library becomes a block, pins and all.
+    import('/api/bim/ui/picker.js').then(({ libraryButton }) => {
+      this.btnNewDevice?.before(libraryButton({ title: 'Add a device from the BIM library as a block' }, (part) => {
+        const dev = partToBlockDevice(part);
+        this.devices.push(dev);
+        this.activeDeviceId = dev.id;
+        this.block.loadDevice(dev);
+        this.populateDevicePicker();
+        this.render();
+        this.changed();
+      }));
+    }).catch(() => {});
 
     this.btnCloneDevice?.addEventListener('click', () => {
       const current = this.devices.find((d) => d.id === this.activeDeviceId);
