@@ -2,6 +2,8 @@
 // MIT Licence. Free, for everyone, for ever. Full text in LICENSE at the root.
 // Authentic Vector Connector Icons Extracted Directly from EDITORS.CAD.Like.audio
 
+import { CAD_CONNECTORS, connectorIconId } from './deviceCatalog.js';
+
 export const CAD_CONNECTOR_CATALOG = [
   {
     "id": "xlr-f",
@@ -486,9 +488,32 @@ export const CAD_CONNECTOR_SYMBOLS_SVG = `
 <text x="60" y="64" text-anchor="middle" dominant-baseline="central" fill="#52525b" font-size="14" font-family="monospace" font-weight="bold">BLANK</text></symbol>
 `;
 
-export const CAD_SYMBOLS_SVG_SHEET = CAD_CONNECTOR_SYMBOLS_SVG;
+/* Every catalogue connector the app offers (and every older spelling its
+   config maps) gets a `cad-icon-<name>` symbol that draws its icon, so a port's
+   `#cad-icon-${connector}` reference finds one; which icon is config data
+   (config/vocabulary.json icons). Names an SVG id cannot carry (spaces, '#')
+   are skipped and draw no icon, as before. */
+function iconAliasSymbols() {
+  const have = new Set([...CAD_CONNECTOR_SYMBOLS_SVG.matchAll(/<symbol id="cad-icon-([^"]+)"/g)].map(m => m[1]));
+  const out = [];
+  for (const name of CAD_CONNECTORS) {
+    const id = String(name).toLowerCase();
+    const icon = connectorIconId(name);
+    if (!icon || have.has(id) || !/^[a-z0-9._+-]+$/.test(id) || !have.has(icon)) continue;
+    have.add(id);
+    out.push(`<symbol id="cad-icon-${id}" viewBox="0 0 120 120"><use href="#cad-icon-${icon}"/></symbol>`);
+  }
+  return out.join('\n');
+}
+
+export const CAD_SYMBOLS_SVG_SHEET = CAD_CONNECTOR_SYMBOLS_SVG + iconAliasSymbols();
 
 export function getConnectorMeta(id) {
+  const icon = connectorIconId(id);
+  if (icon) {
+    const hit = CAD_CONNECTOR_CATALOG.find(c => c.id === icon);
+    if (hit) return hit;
+  }
   const clean = String(id || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   if (clean.includes("xlrf") || clean === "xlrs" || clean === "xlr3s") return CAD_CONNECTOR_CATALOG.find(c => c.id === "xlr-f");
   if (clean.includes("xlrm") || clean === "xlrp" || clean === "xlr3p") return CAD_CONNECTOR_CATALOG.find(c => c.id === "xlr-m");

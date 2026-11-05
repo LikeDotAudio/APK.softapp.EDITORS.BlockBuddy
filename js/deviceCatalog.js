@@ -1,43 +1,22 @@
 // Part of the APK.audio project — http://APK.audio — made by Anthony Kuzub
 // MIT Licence. Free, for everyone, for ever. Full text in LICENSE at the root.
 
-export const SIGNAL_FORMATS = [
-  'Analog Audio',
-  'AES3',
-  'Dante / AES67',
-  'MADI',
-  'HDMI 2.1',
-  '12G-SDI',
-  'Gigabit PoE+',
-  '10GbE SFP+',
-  'RS-232 / 422',
-  'GPIO',
-  'DMX512',
-  'WordClock',
-  'RF Coax',
-  'USB 3.0 / C',
-  'Ethernet / IP',
-  'AC Mains 120/240V',
-  'DC Low Voltage'
-];
+import { VOCABULARY } from './vocabulary.js';
 
-export const CAD_CONNECTORS = [
-  'XLR-F',
-  'XLR-M',
-  'BNC',
-  'EtherCON',
-  'RJ45',
-  'Speakon',
-  'TRS',
-  'HDMI',
-  'USB-C',
-  'OpticalCON',
-  'DB-25',
-  'PowerCon',
-  'IEC',
-  'Terminal-Block',
-  'Blank'
-];
+/* The port table's format and connector selects are the shared vocabulary —
+   the CAD's catalogue (vendor/apk-vocabulary) through config/vocabulary.json,
+   where this app's own formats, older spellings, colours and icons are data
+   (ROAD-3501). A value a block brings that is not listed is kept as it is. */
+export const SIGNAL_FORMATS = VOCABULARY.formatNames;
+export const CAD_CONNECTORS = VOCABULARY.connectorNames;
+
+/** The icon symbol (js/cadConnectorSymbols.js, `cad-icon-<id>`) a connector is drawn with. */
+export function connectorIconId(connector) {
+  const icons = VOCABULARY.config.icons || {};
+  const e = VOCABULARY.connectorFor(connector);
+  if (!e) return null;
+  return (icons.byConnector || {})[e.abbreviation] || (icons.byGroup || {})[e.group] || icons.default || null;
+}
 
 export const DEVICE_CATEGORIES = [
   'Audio DSP',
@@ -70,12 +49,12 @@ export function createBlankDevice(name = 'NEW_DEVICE', make = 'Generic', model =
     height: 180,
     source: 'custom',
     ports: [
-      { id: 'IN_1', label: 'Input 1', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
-      { id: 'IN_2', label: 'Input 2', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
-      { id: 'OUT_1', label: 'Output 1', side: 'right', dir: 'Out', format: 'Analog Audio', connector: 'XLR-M', color: '#10B981' },
-      { id: 'OUT_2', label: 'Output 2', side: 'right', dir: 'Out', format: 'Analog Audio', connector: 'XLR-M', color: '#10B981' },
+      { id: 'IN_1', label: 'Input 1', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'X3S', color: '#10B981' },
+      { id: 'IN_2', label: 'Input 2', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'X3S', color: '#10B981' },
+      { id: 'OUT_1', label: 'Output 1', side: 'right', dir: 'Out', format: 'Analog Audio', connector: 'X3P', color: '#10B981' },
+      { id: 'OUT_2', label: 'Output 2', side: 'right', dir: 'Out', format: 'Analog Audio', connector: 'X3P', color: '#10B981' },
       { id: 'NET_PRI', label: 'Network Primary', side: 'top', dir: 'Bidi', format: 'Gigabit PoE+', connector: 'RJ45', color: '#38BDF8' },
-      { id: 'AC_POWER', label: 'AC Mains IEC', side: 'bottom', dir: 'In', format: 'AC Mains 120/240V', connector: 'IEC', color: '#EF4444' }
+      { id: 'AC_POWER', label: 'AC Mains IEC', side: 'bottom', dir: 'In', format: 'AC Mains 120/240V', connector: 'C14', color: '#EF4444' }
     ]
   };
 }
@@ -96,32 +75,9 @@ export function cloneDevice(device, newName) {
   return clone;
 }
 
+/** A format's colour: its own (config extra), else its signal class's, else the default — all config data. */
 export function formatColorForSignal(format) {
-  switch (format) {
-    case 'Analog Audio':
-      return '#10B981'; // emerald green
-    case 'AES3':
-    case 'Dante / AES67':
-    case 'MADI':
-    case 'Gigabit PoE+':
-    case '10GbE SFP+':
-    case 'Ethernet / IP':
-      return '#38BDF8'; // sky cyan
-    case 'HDMI 2.1':
-    case '12G-SDI':
-      return '#A855F7'; // purple
-    case 'RS-232 / 422':
-    case 'GPIO':
-    case 'DMX512':
-    case 'WordClock':
-    case 'RF Coax':
-      return '#F59E0B'; // amber
-    case 'AC Mains 120/240V':
-    case 'DC Low Voltage':
-      return '#EF4444'; // rose / red
-    case 'USB 3.0 / C':
-      return '#06B6D4'; // teal
-    default:
-      return '#94A3B8'; // slate
-  }
+  const colors = VOCABULARY.config.colors || {};
+  const f = VOCABULARY.formatFor(format);
+  return (f && (f.color || (colors.byClass || {})[f.class])) || colors.default || '#94A3B8';
 }
