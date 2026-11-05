@@ -7,3 +7,7 @@ Defines a device's schematic block: pins with side, direction, format and connec
 power at the bottom — `js/bimPart.js`); **📚 Library** adds any other part as a block. A group of N ports is N
 pins (capped at 32, the remainder named on the last). Tests: `node --test tests/*.test.mjs` (the thirteen
 devices it used to ship are a fixture, `tests/fixtures/builtinDevices.mjs`).
+
+<!-- wiki:smoke -->
+**Smoke test** — ✅ PASS 3/3 since 2026-11-04 21:31 EST — [results](Documentation/%F0%9F%A7%A9Manual%20and%20Artifacts/SMOKE.md)
+<!-- /wiki:smoke -->
