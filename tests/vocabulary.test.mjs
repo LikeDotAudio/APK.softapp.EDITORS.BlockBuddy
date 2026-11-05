@@ -84,3 +84,11 @@ test('📚 Library: no /api/bim says so on screen, and adds no devices of its ow
   assert.equal(r.notice.attrs.role, 'status');
   assert.match(r.notice.title, /Failed to fetch/);
 });
+
+test('📚 Library: the app mounts the picker through libraryPicker.js, never a silent catch', (t) => {
+  const src = read('blockBuddyApp.js');
+  // The call site landed separately (js/blockBuddyApp.js held another session's work); until then, say so.
+  if (!/from '\.\/libraryPicker\.js'/.test(src)) return t.skip('js/blockBuddyApp.js does not use js/libraryPicker.js yet');
+  assert.match(src, /mountLibraryButton\(this\.btnNewDevice/);
+  assert.doesNotMatch(src, /import\('\/api\/bim\/ui\/picker\.js'\)[\s\S]{0,600}\.catch\(\(\) => \{\}\)/);
+});
