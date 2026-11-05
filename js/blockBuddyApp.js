@@ -12,6 +12,7 @@ import {
   formatColorForSignal,
 } from './deviceCatalog.js';
 import { CAD_SYMBOLS_SVG_SHEET } from './cadConnectorSymbols.js';
+import { mountLibraryButton } from './libraryPicker.js';
 import { interpretToBlock } from './universalBlockInterpreter.js';
 import { partToBlockDevice } from './bimPart.js';
 
@@ -26,6 +27,30 @@ export class BlockBuddyApp {
 
     this.block = new BlockDefinitionModel();
     this.block.loadDevice(this.devices[0]);
+
+    S.describe({
+      name: 'Block Buddy',
+      does: 'Builds a device schematic block: its ports on four sides (inputs left, outputs right, bus/clock top, power bottom), for the CAD.',
+      inputs: [
+        { name: 'Device block', from: 'the CAD (when opened from a drawing), or Open: .json / .txt / .csv / .sch', kind: 'file' },
+        { name: 'Any port list', from: 'Ingest (paste JSON, CSV or a wirelist) or a file dropped on the page', kind: 'file' },
+        { name: 'Bench devices', from: 'the BIM library: /api/bim/instances?state=online and their parts (when the host serves it)' },
+        { name: 'Device library', from: 'the BIM library picker (Library button, when the host serves it)' },
+        { name: 'Discovered devices', from: 'the bus: things scanners and agents found (kinds in config/discovery.json)', kind: 'bus' },
+      ],
+      outputs: [
+        { name: 'Device block', to: 'the CAD on Save and on every edit; standalone Save downloads a .json', kind: 'file' },
+      ],
+      controls: [
+        { name: 'Device picker / New / Clone / Library', how: 'choose, start, copy or import the device being drawn' },
+        { name: 'Name, Make, Model, Kind, RU, W, H', how: 'device fields; W and H size the block' },
+        { name: 'Side filters', how: 'All / Left / Right / Top / Bottom show one side of ports' },
+        { name: '+ 8 Inputs / + 8 Outputs / + Dante Net / + Power / + Add Port', how: 'add ports in bulk or one at a time; edit them in the table' },
+        { name: 'Ingest', how: 'paste data (or load a preset) and Parse & Build' },
+        { name: 'Discovered / Open / Save / Close', how: 'header buttons' },
+      ],
+      problems: ['bad_input', 'file_unreadable', 'not_in_cad', 'bus_missing', 'http_server_error', 'bad_json'],
+    });
 
     this.initElements();
     this.createTable();
@@ -172,18 +197,17 @@ export class BlockBuddyApp {
       this.changed();
     });
 
-    // 📚 Library: any device in the BIM library becomes a block, pins and all.
-    import('/api/bim/ui/picker.js').then(({ libraryButton }) => {
-      this.btnNewDevice?.before(libraryButton({ title: 'Add a device from the BIM library as a block' }, (part) => {
-        const dev = partToBlockDevice(part);
-        this.devices.push(dev);
-        this.activeDeviceId = dev.id;
-        this.block.loadDevice(dev);
-        this.populateDevicePicker();
-        this.render();
-        this.changed();
-      }));
-    }).catch(() => {});
+    // 📚 Library: any device in the BIM library becomes a block, pins and all;
+    // no library on this host says so where the button would be (js/libraryPicker.js).
+    mountLibraryButton(this.btnNewDevice, (part) => {
+      const dev = partToBlockDevice(part);
+      this.devices.push(dev);
+      this.activeDeviceId = dev.id;
+      this.block.loadDevice(dev);
+      this.populateDevicePicker();
+      this.render();
+      this.changed();
+    });
 
     this.btnCloneDevice?.addEventListener('click', () => {
       const current = this.devices.find((d) => d.id === this.activeDeviceId);
@@ -309,8 +333,8 @@ export class BlockBuddyApp {
     this.btnExecuteIngest?.addEventListener('click', () => {
       const text = this.ingestTextarea?.value || '';
       if (!text.trim()) return;
-      this.ingestArbitraryData(text);
-      if (this.modalIngest) this.modalIngest.style.display = 'none';
+      // a paste that cannot be read keeps the modal open, with the problem card saying why
+      if (this.ingestArbitraryData(text, { title: 'pasted data' }) && this.modalIngest) this.modalIngest.style.display = 'none';
     });
 
     this.presetMixer?.addEventListener('click', () => {
@@ -385,13 +409,7 @@ export class BlockBuddyApp {
     window.addEventListener('drop', (e) => {
       e.preventDefault();
       const file = e.dataTransfer.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (re) => {
-          this.ingestArbitraryData(re.target.result);
-        };
-        reader.readAsText(file);
-      }
+      if (file) this.readFile(file);
     });
   }
 
@@ -423,14 +441,20 @@ export class BlockBuddyApp {
   /* Discovered devices are the things the bus knows (APKSoftapp.discovered), never a list of our own. */
   /** The bench's online devices, each as its BIM library part with every pin. */
   async loadBench() {
+    // No library on this host (a static copy: unreachable or 404) is normal and stays quiet;
+    // a library that is there but fails says what happened, with Retry.
+    const quiet = (p) => !p || p.code === 'fetch_failed' || p.code === 'http_not_found';
+    const fail = (r) => {
+      if (!quiet(r.problem)) this.S.showProblem(r.problem, { subject: 'BIM library (bench devices)', onRetry: () => this.loadBench() });
+    };
     try {
-      const r = await fetch('/api/bim/instances?state=online');
-      if (!r.ok) return;
-      const ids = [...new Set((await r.json()).items.map(i => i.part?.id).filter(Boolean))];
+      const r = await this.S.fetchJson('/api/bim/instances?state=online', { subject: 'BIM library' });
+      if (!r.ok) return fail(r);
+      const ids = [...new Set(((r.data && r.data.items) || []).map(i => i.part?.id).filter(Boolean))];
       if (!ids.length) return;
-      const q = await fetch(`/api/bim/parts?full=1&limit=200&id=${ids.map(encodeURIComponent).join(',')}`);
-      if (!q.ok) return;
-      const parts = (await q.json()).items;
+      const q = await this.S.fetchJson(`/api/bim/parts?full=1&limit=200&id=${ids.map(encodeURIComponent).join(',')}`, { subject: 'BIM library' });
+      if (!q.ok) return fail(q);
+      const parts = (q.data && q.data.items) || [];
       const have = new Set(this.devices.map(d => d.bimId).filter(Boolean));
       const fresh = parts.filter(p => !have.has(p.id) && (p.ports || []).length).map(partToBlockDevice);
       if (!fresh.length) return;
@@ -458,6 +482,9 @@ export class BlockBuddyApp {
     const d = await this.S.discovered({ kinds, onChange: (things) => this.applyDiscovered(things) });
     if (!d.ok) {
       this.sayDiscovery('dead', d.reason);
+      // asked for explicitly (the button), so say what to do; at startup the status line is enough
+      if (this.discoveryAsked && d.problem) this.S.showProblem(d.problem, { subject: 'Discovered devices', onRetry: () => this.readDiscovered() });
+      this.discoveryAsked = true;
       return;
     }
     this.discovery = d;
@@ -492,8 +519,15 @@ export class BlockBuddyApp {
       this.changed();
       return blockDef;
     } catch (err) {
-      console.error('Failed to interpret payload into block:', err);
-      alert('Could not interpret input data. Ensure it has valid text, JSON, inputs, outputs or connections.');
+      this.S.showProblem('bad_input', {
+        subject: meta.title || 'input data',
+        detail: err && err.message ? err.message : String(err),
+        fix: [
+          'Give it JSON with ports, inputs / outputs or connections, or one "Name, Type / Direction" line per port (Ingest shows presets of each).',
+          'A CAD block .json saved by Block Buddy opens as-is.',
+        ],
+        onRetry: meta.retry,
+      });
       return null;
     }
   }
@@ -826,13 +860,21 @@ export class BlockBuddyApp {
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (re) => {
-        this.ingestArbitraryData(re.target.result, { title: file.name });
-      };
-      reader.readAsText(file);
+      this.readFile(file, () => this.promptOpen());
     };
     input.click();
+  }
+
+  /** A dropped or picked file into the interpreter; a read failure says so, with Retry when we can pick again. */
+  readFile(file, retry) {
+    const reader = new FileReader();
+    reader.onerror = () => this.S.showProblem('file_unreadable', {
+      subject: file.name, detail: reader.error && reader.error.message, onRetry: retry,
+    });
+    reader.onload = (re) => {
+      this.ingestArbitraryData(re.target.result, { title: file.name, retry });
+    };
+    reader.readAsText(file);
   }
 }
 
