@@ -15,6 +15,7 @@ export class BlockDefinitionModel {
     this.width = 280;
     this.height = 180;
     this.source = 'custom';
+    this.identity = null;   // a discovered device's { id, mac, serial } — never an IP
     this.ports = [
       { id: 'IN_1', label: 'Analog In 1', side: 'left', format: 'Analog Audio', connector: 'XLR-F', dir: 'In', color: '#10B981' },
       { id: 'IN_2', label: 'Analog In 2', side: 'left', format: 'Analog Audio', connector: 'XLR-F', dir: 'In', color: '#10B981' },
@@ -37,6 +38,7 @@ export class BlockDefinitionModel {
     this.width = Number(dev.width) || this.width;
     this.height = Number(dev.height) || this.height;
     this.source = dev.source || this.source;
+    this.identity = dev.identity || null;
 
     if (Array.isArray(dev.ports)) {
       this.ports = dev.ports.map((p, idx) => ({
@@ -157,6 +159,7 @@ export class BlockDefinitionModel {
       height: this.height,
       source: this.source,
       ports: this.ports,
+      ...(this.identity ? { identity: this.identity } : {}),
       timestamp: new Date().toISOString()
     };
   }

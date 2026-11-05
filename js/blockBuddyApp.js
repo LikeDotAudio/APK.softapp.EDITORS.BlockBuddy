@@ -1,7 +1,7 @@
 // Part of the APK.audio project — http://APK.audio — made by Anthony Kuzub
 // MIT Licence. Free, for everyone, for ever. Full text in LICENSE at the root.
 
-import { BlockBridge } from './blockBridge.js';
+import { connectBlockHost, saveMeta, mergeDiscovered } from './blockHost.js';
 import { BlockDefinitionModel } from './blockModel.js';
 import {
   BUILTIN_DEVICES,
@@ -16,7 +16,8 @@ import { CAD_SYMBOLS_SVG_SHEET } from './cadConnectorSymbols.js';
 import { interpretToBlock } from './universalBlockInterpreter.js';
 
 export class BlockBuddyApp {
-  constructor() {
+  constructor(S) {
+    this.S = S;
     this.devices = [...BUILTIN_DEVICES];
     this.activeDeviceId = this.devices[0].id;
     this.activeFilter = 'all';
@@ -25,19 +26,27 @@ export class BlockBuddyApp {
     this.block = new BlockDefinitionModel();
     this.block.loadDevice(this.devices[0]);
 
-    this.bridge = new BlockBridge({
-      name: 'Block Buddy',
-      type: 'schematic_block',
-      onBlockLoaded: (block, meta) => this.handleBlockLoaded(block, meta),
-      onBlockChanged: () => {},
-    });
-
     this.initElements();
+    this.createTable();
     this.injectCadSymbols();
     this.populateKindPicker();
     this.populateDevicePicker();
     this.attachEvents();
-    this.loadInitialData();
+
+    // The CAD sends the block after editorReady; the page must be built first.
+    this.host = connectBlockHost(S, {
+      onLoad: (block, meta) => this.handleBlockLoaded(block, meta),
+      current: () => { this.syncActiveDeviceState(); return this.block.toJSON(); },
+    });
+    S.inheritTheme();
+    this.render();
+    this.readDiscovered();
+  }
+
+  /** After an edit: the CAD hears blockChanged (standalone, nothing is sent). */
+  changed() {
+    const block = this.block.toJSON();
+    this.host.changed(block, saveMeta(block));
   }
 
   injectCadSymbols() {
@@ -70,7 +79,8 @@ export class BlockBuddyApp {
     this.badgePortCount = document.getElementById('port-count-badge');
 
     this.symbolStage = document.getElementById('symbol-preview-stage');
-    this.tableBody = document.getElementById('pin-table-body');
+    this.tableHost = document.getElementById('pin-table');
+    this.discoveryStatus = document.getElementById('discovery-status');
     this.btnAddPin = document.getElementById('btn-add-pin');
 
     this.btnBulkIn8 = document.getElementById('btn-bulk-in8');
@@ -110,7 +120,7 @@ export class BlockBuddyApp {
     this.selectDevice.innerHTML = '';
 
     const discoveredGroup = document.createElement('optgroup');
-    discoveredGroup.label = '⚡ Discovered Bench Devices';
+    discoveredGroup.label = '⚡ Discovered on the bus';
 
     const libraryGroup = document.createElement('optgroup');
     libraryGroup.label = '📦 Pro AV / IT Hardware Library';
@@ -121,7 +131,8 @@ export class BlockBuddyApp {
     this.devices.forEach((dev) => {
       const opt = document.createElement('option');
       opt.value = dev.id;
-      opt.textContent = `${dev.displayName || dev.name} (${dev.ports ? dev.ports.length : 0}P)`;
+      opt.textContent = `${dev.displayName || dev.name} (${dev.ports ? dev.ports.length : 0}P)`
+        + (dev.source === 'discovered' && dev.live ? ` · ${dev.live.state}` : '');
 
       if (dev.source === 'discovered') {
         discoveredGroup.appendChild(opt);
@@ -142,8 +153,8 @@ export class BlockBuddyApp {
   attachEvents() {
     this.btnOpen?.addEventListener('click', () => this.promptOpen());
     this.btnSave?.addEventListener('click', () => this.saveBlock());
-    this.btnClose?.addEventListener('click', () => this.bridge.close());
-    this.btnSyncDiscovered?.addEventListener('click', () => this.loadFromDiscoveredProject(true));
+    this.btnClose?.addEventListener('click', () => this.host.close());
+    this.btnSyncDiscovered?.addEventListener('click', () => this.readDiscovered());
 
     this.selectDevice?.addEventListener('change', (e) => {
       this.selectDeviceById(e.target.value);
@@ -156,7 +167,7 @@ export class BlockBuddyApp {
       this.block.loadDevice(newDev);
       this.populateDevicePicker();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.btnCloneDevice?.addEventListener('click', () => {
@@ -168,21 +179,21 @@ export class BlockBuddyApp {
       this.block.loadDevice(clone);
       this.populateDevicePicker();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.inputDeviceName?.addEventListener('input', (e) => {
       this.block.name = e.target.value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
       this.syncActiveDeviceState();
       this.renderSymbol();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.inputDeviceMake?.addEventListener('input', (e) => {
       this.block.make = e.target.value;
       this.syncActiveDeviceState();
       this.renderSymbol();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.inputDeviceModel?.addEventListener('input', (e) => {
@@ -190,7 +201,7 @@ export class BlockBuddyApp {
       this.block.displayName = `${this.block.make} ${this.block.model}`;
       this.syncActiveDeviceState();
       this.renderSymbol();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.selectDeviceKind?.addEventListener('change', (e) => {
@@ -198,27 +209,27 @@ export class BlockBuddyApp {
       this.badgeKind.textContent = this.block.kind;
       this.syncActiveDeviceState();
       this.renderSymbol();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.inputDeviceRu?.addEventListener('input', (e) => {
       this.block.ru = e.target.value;
       this.syncActiveDeviceState();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.inputBlockW?.addEventListener('input', (e) => {
       this.block.width = Math.max(160, parseInt(e.target.value, 10) || 280);
       this.syncActiveDeviceState();
       this.renderSymbol();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.inputBlockH?.addEventListener('input', (e) => {
       this.block.height = Math.max(120, parseInt(e.target.value, 10) || 180);
       this.syncActiveDeviceState();
       this.renderSymbol();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.filterButtons.forEach((btn) => {
@@ -236,35 +247,35 @@ export class BlockBuddyApp {
       });
       this.syncActiveDeviceState();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.btnBulkIn8?.addEventListener('click', () => {
       this.block.bulkAddPorts('inputs8');
       this.syncActiveDeviceState();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.btnBulkOut8?.addEventListener('click', () => {
       this.block.bulkAddPorts('outputs8');
       this.syncActiveDeviceState();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.btnBulkDante?.addEventListener('click', () => {
       this.block.bulkAddPorts('dante');
       this.syncActiveDeviceState();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.btnBulkPwr?.addEventListener('click', () => {
       this.block.bulkAddPorts('power_ground');
       this.syncActiveDeviceState();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     // Ingest Modal & Presets
@@ -367,9 +378,6 @@ export class BlockBuddyApp {
         reader.readAsText(file);
       }
     });
-      this.render();
-      this.bridge.notifyChanged();
-    });
   }
 
   selectDeviceById(deviceId) {
@@ -379,7 +387,7 @@ export class BlockBuddyApp {
     this.selectedPortIndex = null;
     this.block.loadDevice(dev);
     this.render();
-    this.bridge.notifyChanged();
+    this.changed();
   }
 
   syncActiveDeviceState() {
@@ -397,59 +405,41 @@ export class BlockBuddyApp {
     }
   }
 
-  loadInitialData() {
-    this.loadFromDiscoveredProject(false).catch(() => {
-      this.render();
-    });
+  /* Discovered devices are the things the bus knows (APKSoftapp.discovered), never a list of our own. */
+  async readDiscovered() {
+    if (this.discovery) {
+      this.applyDiscovered(this.discovery.things());
+      return;
+    }
+    let kinds = [];
+    try {
+      const r = await fetch(new URL('../config/discovery.json', import.meta.url), { cache: 'no-store' });
+      if (r.ok) kinds = (await r.json()).kinds || [];
+    } catch (_) { /* no config: every thing */ }
+    const d = await this.S.discovered({ kinds, onChange: (things) => this.applyDiscovered(things) });
+    if (!d.ok) {
+      this.sayDiscovery('dead', d.reason);
+      return;
+    }
+    this.discovery = d;
+    this.applyDiscovered(d.things());
   }
 
-  async loadFromDiscoveredProject(notify = false) {
-    try {
-      const data = await this.bridge.fetchDiscoveredProject();
-      if (data) {
-        const rawDevs =
-          data?.all_discovered?.blocks?.Devices?.data ||
-          data?.devices ||
-          data?.blocks;
+  applyDiscovered(things) {
+    const added = mergeDiscovered(this.devices, things, DEVICE_CATEGORIES);
+    const good = things.filter((t) => t.live && t.live.state === 'good').length;
+    const link = this.discovery && this.discovery.bus;
+    const empty = link && link.connected === false ? 'No broker reachable from this page yet: no discovered devices.' : 'The bus knows no devices yet.';
+    this.sayDiscovery(good ? 'good' : things.length ? 'kinda' : 'dead',
+      things.length ? `${things.length} discovered on the bus, ${good} verified in the last 5 min.` : empty);
+    if (added || things.length) this.populateDevicePicker();   // live state is in the option text
+    this.renderSourceBadge();
+  }
 
-        if (Array.isArray(rawDevs) && rawDevs.length > 0) {
-          const discoveredMap = new Set(this.devices.map((d) => d.name));
-          rawDevs.forEach((item) => {
-            const devName = item.device || item.name || item.id;
-            if (devName && !discoveredMap.has(devName)) {
-              discoveredMap.add(devName);
-              const isInstrument = /34401|54641|33220|8903|4263|66102|6060|DS1104/i.test(devName);
-              const isAudio = /Desk|inputs|Analog|Digital/i.test(devName);
-              this.devices.unshift({
-                id: `dev_disc_${devName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-                name: devName.replace(/\s+/g, '_'),
-                displayName: devName,
-                make: isInstrument ? 'Keysight / HP' : isAudio ? 'APK Audio' : 'Discovered',
-                model: devName,
-                kind: isInstrument ? 'Test Instrument' : isAudio ? 'Audio DSP' : 'Custom Device',
-                ru: isInstrument ? '2U Bench' : '1U Rackmount',
-                width: 280,
-                height: 180,
-                source: 'discovered',
-                ports: [
-                  { id: 'IN_1', label: `${devName} In 1`, side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
-                  { id: 'IN_2', label: `${devName} In 2`, side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
-                  { id: 'OUT_1', label: `${devName} Out 1`, side: 'right', dir: 'Out', format: 'Analog Audio', connector: 'XLR-M', color: '#10B981' },
-                  { id: 'OUT_2', label: `${devName} Out 2`, side: 'right', dir: 'Out', format: 'Analog Audio', connector: 'XLR-M', color: '#10B981' },
-                  { id: 'NET_CTRL', label: 'Ethernet / Bus', side: 'top', dir: 'Bidi', format: 'Gigabit PoE+', connector: 'RJ45', color: '#38BDF8' },
-                  { id: 'AC_POWER', label: 'AC Mains', side: 'bottom', dir: 'In', format: 'AC Mains 120/240V', connector: 'IEC', color: '#EF4444' }
-                ]
-              });
-            }
-          });
-          this.populateDevicePicker();
-          if (notify) {
-            this.badgeSource.textContent = `⚡ SYNCED (${rawDevs.length} DISCOVERED DEVICES)`;
-          }
-        }
-      }
-    } catch (_) {}
-    this.render();
+  sayDiscovery(state, text) {
+    if (!this.discoveryStatus) return;
+    this.discoveryStatus.textContent = text;
+    this.discoveryStatus.setAttribute('data-apk-state', state);
   }
 
   ingestArbitraryData(raw, meta = {}) {
@@ -460,7 +450,7 @@ export class BlockBuddyApp {
       this.block.loadDevice(blockDef);
       this.populateDevicePicker();
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
       return blockDef;
     } catch (err) {
       console.error('Failed to interpret payload into block:', err);
@@ -503,10 +493,7 @@ export class BlockBuddyApp {
   saveBlock() {
     this.syncActiveDeviceState();
     const block = this.block.toJSON();
-    this.bridge.saveBlock(block, {
-      title: `${this.block.displayName || this.block.name} (${this.block.ports.length} Ports)`,
-      filename: `block_${this.block.name.toLowerCase()}`,
-    });
+    this.host.save(block, saveMeta(block));
   }
 
   render() {
@@ -519,9 +506,25 @@ export class BlockBuddyApp {
     if (this.inputBlockW) this.inputBlockW.value = this.block.width;
     if (this.inputBlockH) this.inputBlockH.value = this.block.height;
 
+    this.renderSourceBadge();
+
+    if (this.badgeKind) this.badgeKind.textContent = this.block.kind;
+    if (this.badgePortCount) this.badgePortCount.textContent = `${this.block.ports.length} PORTS`;
+
+    this.renderSymbol();
+    this.renderTable();
+  }
+
+  renderSourceBadge() {
     if (this.badgeSource) {
+      this.badgeSource.removeAttribute('data-apk-state');
+      this.badgeSource.title = '';
       if (this.block.source === 'discovered') {
-        this.badgeSource.textContent = '⚡ DISCOVERED BENCH DEVICE';
+        const dev = this.devices.find((d) => d.id === this.activeDeviceId);
+        const live = (dev && dev.live) || { state: 'dead', why: 'not on the bus' };
+        this.badgeSource.textContent = `⚡ DISCOVERED · ${live.state.toUpperCase()} · ${live.why}`;
+        this.badgeSource.setAttribute('data-apk-state', live.state);
+        this.badgeSource.title = dev && dev.identity ? `identity ${dev.identity.id}` : '';
         this.badgeSource.style.borderColor = 'rgba(244, 144, 44, 0.4)';
         this.badgeSource.style.color = '#F4902C';
       } else if (this.block.source === 'library') {
@@ -534,12 +537,6 @@ export class BlockBuddyApp {
         this.badgeSource.style.color = '#A855F7';
       }
     }
-
-    if (this.badgeKind) this.badgeKind.textContent = this.block.kind;
-    if (this.badgePortCount) this.badgePortCount.textContent = `${this.block.ports.length} PORTS`;
-
-    this.renderSymbol();
-    this.renderTable();
   }
 
   renderSymbol() {
@@ -623,8 +620,8 @@ export class BlockBuddyApp {
 
           parts.push(`
             <line x1="${px - stubLen}" y1="${py}" x2="${px}" y2="${py}" stroke="${isSelected ? '#F4902C' : '#3F3F46'}" stroke-width="${isSelected ? 2 : 1.5}"/>
-            <circle cx="${px - stubLen}" cy="${py}" r="${isSelected ? 4.5 : 3.5}" fill="${color}" stroke="#121212" stroke-width="1"/>
-            <use href="#cad-icon-${conn.toLowerCase()}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${color};"/>
+            <circle cx="${px - stubLen}" cy="${py}" r="${isSelected ? 4.5 : 3.5}" fill="${this.escapeXml(color)}" stroke="#121212" stroke-width="1"/>
+            <use href="#cad-icon-${this.escapeXml(conn.toLowerCase())}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${this.escapeXml(color)};"/>
           `);
         } else if (side === 'right') {
           px = pad + w;
@@ -637,8 +634,8 @@ export class BlockBuddyApp {
 
           parts.push(`
             <line x1="${px}" y1="${py}" x2="${px + stubLen}" y2="${py}" stroke="${isSelected ? '#F4902C' : '#3F3F46'}" stroke-width="${isSelected ? 2 : 1.5}"/>
-            <circle cx="${px + stubLen}" cy="${py}" r="${isSelected ? 4.5 : 3.5}" fill="${color}" stroke="#121212" stroke-width="1"/>
-            <use href="#cad-icon-${conn.toLowerCase()}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${color};"/>
+            <circle cx="${px + stubLen}" cy="${py}" r="${isSelected ? 4.5 : 3.5}" fill="${this.escapeXml(color)}" stroke="#121212" stroke-width="1"/>
+            <use href="#cad-icon-${this.escapeXml(conn.toLowerCase())}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${this.escapeXml(color)};"/>
           `);
         } else if (side === 'top') {
           px = pad + ((i + 1) / (count + 1)) * w;
@@ -650,9 +647,9 @@ export class BlockBuddyApp {
           iconY = py - stubLen - 14;
 
           parts.push(`
-            <line x1="${px}" y1="${py - stubLen}" y2="${px}" y2="${py}" stroke="${isSelected ? '#F4902C' : '#3F3F46'}" stroke-width="${isSelected ? 2 : 1.5}"/>
-            <circle cx="${px}" cy="${py - stubLen}" r="${isSelected ? 4.5 : 3.5}" fill="${color}" stroke="#121212" stroke-width="1"/>
-            <use href="#cad-icon-${conn.toLowerCase()}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${color};"/>
+            <line x1="${px}" y1="${py - stubLen}" x2="${px}" y2="${py}" stroke="${isSelected ? '#F4902C' : '#3F3F46'}" stroke-width="${isSelected ? 2 : 1.5}"/>
+            <circle cx="${px}" cy="${py - stubLen}" r="${isSelected ? 4.5 : 3.5}" fill="${this.escapeXml(color)}" stroke="#121212" stroke-width="1"/>
+            <use href="#cad-icon-${this.escapeXml(conn.toLowerCase())}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${this.escapeXml(color)};"/>
           `);
         } else if (side === 'bottom') {
           px = pad + ((i + 1) / (count + 1)) * w;
@@ -665,8 +662,8 @@ export class BlockBuddyApp {
 
           parts.push(`
             <line x1="${px}" y1="${py}" x2="${px}" y2="${py + stubLen}" stroke="${isSelected ? '#F4902C' : '#3F3F46'}" stroke-width="${isSelected ? 2 : 1.5}"/>
-            <circle cx="${px}" cy="${py + stubLen}" r="${isSelected ? 4.5 : 3.5}" fill="${color}" stroke="#121212" stroke-width="1"/>
-            <use href="#cad-icon-${conn.toLowerCase()}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${color};"/>
+            <circle cx="${px}" cy="${py + stubLen}" r="${isSelected ? 4.5 : 3.5}" fill="${this.escapeXml(color)}" stroke="#121212" stroke-width="1"/>
+            <use href="#cad-icon-${this.escapeXml(conn.toLowerCase())}" x="${iconX}" y="${iconY}" width="14" height="14" style="color: ${this.escapeXml(color)};"/>
           `);
         }
 
@@ -708,132 +705,66 @@ export class BlockBuddyApp {
     this.selectedPortIndex = index;
     this.renderSymbol();
     this.renderTable();
-
-    // Scroll selected row into view
-    const row = this.tableBody.querySelector(`tr[data-full-idx="${index}"]`);
-    if (row) {
-      row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    const row = this.tableHost && this.tableHost.querySelector('tr.selected');
+    if (row && row.scrollIntoView) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  renderTable() {
-    this.tableBody.innerHTML = '';
-
-    const filtered = this.block.ports
-      .map((p, idx) => ({ port: p, index: idx }))
-      .filter((item) => this.activeFilter === 'all' || item.port.side === this.activeFilter);
-
-    if (filtered.length === 0) {
-      const emptyTr = document.createElement('tr');
-      emptyTr.innerHTML = `
-        <td colspan="8" style="text-align: center; padding: 24px; color: var(--osc-text-muted);">
-          No ports assigned to the "${this.activeFilter}" side. Click "+ Add Port" or use a bulk action above.
-        </td>
-      `;
-      this.tableBody.appendChild(emptyTr);
-      return;
-    }
-
-    filtered.forEach((item, pos) => {
-      const p = item.port;
-      const fullIdx = item.index;
-      const isSelected = this.selectedPortIndex === fullIdx;
-
-      const tr = document.createElement('tr');
-      tr.className = `port-item-row ${isSelected ? 'selected' : ''}`;
-      tr.dataset.fullIdx = fullIdx;
-
-      // Build options for Format and Connectors
-      const formatOptions = SIGNAL_FORMATS.map(
-        (f) => `<option value="${f}" ${p.format === f ? 'selected' : ''}>${f}</option>`
-      ).join('');
-
-      const connOptions = CAD_CONNECTORS.map(
-        (c) => `<option value="${c}" ${p.connector === c ? 'selected' : ''}>${c}</option>`
-      ).join('');
-
-      tr.innerHTML = `
-        <td class="col-idx text-center" style="font-weight: 600; color: var(--osc-text-muted);">${pos + 1}</td>
-        <td>
-          <input type="text" class="cell-input" data-idx="${fullIdx}" data-field="id" value="${this.escapeXml(p.id)}" style="font-family: monospace; font-weight: 600; color: ${p.color || '#F4902C'};">
-        </td>
-        <td>
-          <input type="text" class="cell-input" data-idx="${fullIdx}" data-field="label" value="${this.escapeXml(p.label || p.id)}">
-        </td>
-        <td>
-          <select class="cell-input" data-idx="${fullIdx}" data-field="side">
-            <option value="left" ${p.side === 'left' ? 'selected' : ''}>Left (In)</option>
-            <option value="right" ${p.side === 'right' ? 'selected' : ''}>Right (Out)</option>
-            <option value="top" ${p.side === 'top' ? 'selected' : ''}>Top (Bus/Clk)</option>
-            <option value="bottom" ${p.side === 'bottom' ? 'selected' : ''}>Bottom (Power)</option>
-          </select>
-        </td>
-        <td>
-          <select class="cell-input" data-idx="${fullIdx}" data-field="dir">
-            <option value="In" ${p.dir === 'In' ? 'selected' : ''}>Input</option>
-            <option value="Out" ${p.dir === 'Out' ? 'selected' : ''}>Output</option>
-            <option value="Bidi" ${p.dir === 'Bidi' ? 'selected' : ''}>Bi-directional</option>
-          </select>
-        </td>
-        <td>
-          <select class="cell-input" data-idx="${fullIdx}" data-field="format">
-            ${formatOptions}
-          </select>
-        </td>
-        <td>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <svg class="cad-icon-svg" width="16" height="16" style="color: ${p.color};">
-              <use href="#cad-icon-${(p.connector || 'XLR-F').toLowerCase()}"/>
-            </svg>
-            <select class="cell-input" data-idx="${fullIdx}" data-field="connector" style="flex: 1;">
-              ${connOptions}
-            </select>
-          </div>
-        </td>
-        <td class="col-actions">
-          <button class="btn-icon btn-del-pin" data-idx="${fullIdx}" title="Delete Port">🗑</button>
-        </td>
-      `;
-
-      tr.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
-          this.selectPort(fullIdx);
-        }
-      });
-
-      this.tableBody.appendChild(tr);
-    });
-
-    // Attach row input listeners
-    this.tableBody.querySelectorAll('.cell-input').forEach((input) => {
-      input.addEventListener('change', (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
-        const f = e.target.dataset.field;
-        this.block.ports[i][f] = e.target.value;
-
-        if (f === 'format') {
-          this.block.ports[i].color = formatColorForSignal(e.target.value);
-        }
-
+  /** The port table is APKTable: its rows are the block's own port objects, filtered by side. */
+  createTable() {
+    const sides = ['left', 'right', 'top', 'bottom'];
+    this.table = window.APKTable.create(this.tableHost, {
+      id: 'blockbuddy-ports',
+      columns: [
+        { key: '_n', label: '#', render: (v, row) => String(this.block.ports.indexOf(row) + 1) },
+        { key: 'id', label: 'Pin Identifier', mono: true },
+        { key: 'label', label: 'Display Label' },
+        { key: 'side', label: 'Chassis Side', type: 'select', options: sides },
+        { key: 'dir', label: 'Direction', type: 'select', options: ['In', 'Out', 'Bidi'] },
+        { key: 'format', label: 'Signal Format', type: 'select', options: SIGNAL_FORMATS },
+        { key: '_icon', label: '', render: (v, row) => this.connectorIcon(row) },
+        { key: 'connector', label: 'CAD Connector', type: 'select', options: CAD_CONNECTORS },
+      ],
+      rows: [],
+      rowClass: (row) => `port-item-row${this.block.ports.indexOf(row) === this.selectedPortIndex ? ' selected' : ''}`,
+      onSelect: (i, row) => {
+        const idx = this.block.ports.indexOf(row);
+        if (idx >= 0 && idx !== this.selectedPortIndex) this.selectPort(idx);
+      },
+      onEdit: (i, key, value, row) => {
+        if (key === 'format') row.color = formatColorForSignal(value);
         this.syncActiveDeviceState();
         this.renderSymbol();
         this.renderTable();
-        this.bridge.notifyChanged();
-      });
-    });
-
-    // Attach delete listeners
-    this.tableBody.querySelectorAll('.btn-del-pin').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const i = parseInt(e.target.dataset.idx, 10);
-        this.block.removePort(i);
-        if (this.selectedPortIndex === i) this.selectedPortIndex = null;
+        this.changed();
+      },
+      onDelete: (i, row) => {
+        const idx = this.block.ports.indexOf(row);
+        this.block.removePort(idx);
+        if (this.selectedPortIndex === idx) this.selectedPortIndex = null;
         this.syncActiveDeviceState();
         this.render();
-        this.bridge.notifyChanged();
-      });
+        this.changed();
+      },
+      empty: 'No ports on this side. Click "+ Add Port" or use a bulk action above.',
     });
+  }
+
+  connectorIcon(port) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'cad-icon-svg');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.style.color = port.color || formatColorForSignal(port.format);
+    const use = document.createElementNS(NS, 'use');
+    use.setAttribute('href', `#cad-icon-${String(port.connector || 'XLR-F').toLowerCase()}`);
+    svg.appendChild(use);
+    return svg;
+  }
+
+  renderTable() {
+    if (!this.table) return;
+    this.table.setRows(this.block.ports.filter((p) => this.activeFilter === 'all' || p.side === this.activeFilter));
   }
 
   escapeXml(unsafe) {
@@ -868,6 +799,12 @@ export class BlockBuddyApp {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('DOMContentLoaded', () => {
-    window.blockBuddyApp = new BlockBuddyApp();
+    if (!window.APKSoftapp || !window.APKTable) {
+      document.body.prepend(Object.assign(document.createElement('p'), {
+        textContent: 'vendor/apk-softapp or vendor/apk-table did not load: this editor cannot start.',
+      }));
+      return;
+    }
+    window.blockBuddyApp = new BlockBuddyApp(window.APKSoftapp);
   });
 }

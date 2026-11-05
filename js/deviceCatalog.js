@@ -16,6 +16,7 @@ export const SIGNAL_FORMATS = [
   'WordClock',
   'RF Coax',
   'USB 3.0 / C',
+  'Ethernet / IP',
   'AC Mains 120/240V',
   'DC Low Voltage'
 ];
@@ -53,7 +54,9 @@ export const DEVICE_CATEGORIES = [
 ];
 
 export const BUILTIN_DEVICES = [
-  // ==================== DISCOVERED BENCH INSTRUMENTS & DEVICES ====================
+  // ==================== BENCH INSTRUMENT & DEVICE TEMPLATES ====================
+  // Templates only. A device is "discovered" when the bus reports it (APKSoftapp.discovered
+  // in blockBuddyApp.js), never because it is listed here.
   {
     id: 'dev_bench_34401a',
     name: 'Keysight_34401A',
@@ -64,7 +67,7 @@ export const BUILTIN_DEVICES = [
     ru: '2U Half-Rack',
     width: 280,
     height: 180,
-    source: 'discovered',
+    source: 'library',
     ports: [
       { id: 'INPUT_HI', label: 'Input HI (1000V)', side: 'left', dir: 'In', format: 'DC Low Voltage', connector: 'BNC', color: '#EF4444' },
       { id: 'INPUT_LO', label: 'Input LO (Common)', side: 'left', dir: 'In', format: 'DC Low Voltage', connector: 'BNC', color: '#3B82F6' },
@@ -87,7 +90,7 @@ export const BUILTIN_DEVICES = [
     ru: '3U Bench',
     width: 300,
     height: 200,
-    source: 'discovered',
+    source: 'library',
     ports: [
       { id: 'CH1_ANALOG', label: 'Analog CH1 (350MHz)', side: 'left', dir: 'In', format: 'RF Coax', connector: 'BNC', color: '#EAB308' },
       { id: 'CH2_ANALOG', label: 'Analog CH2 (350MHz)', side: 'left', dir: 'In', format: 'RF Coax', connector: 'BNC', color: '#38BDF8' },
@@ -110,7 +113,7 @@ export const BUILTIN_DEVICES = [
     ru: '2U Rackmount',
     width: 320,
     height: 240,
-    source: 'discovered',
+    source: 'library',
     ports: [
       { id: 'MIC_IN_1', label: 'Mic/Line 1 (Discrete)', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
       { id: 'MIC_IN_2', label: 'Mic/Line 2 (Discrete)', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
@@ -139,7 +142,7 @@ export const BUILTIN_DEVICES = [
     ru: '1U Rackmount',
     width: 280,
     height: 220,
-    source: 'discovered',
+    source: 'library',
     ports: [
       { id: 'ANALOG_IN_9', label: 'Analog Ch 9 Line In', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
       { id: 'ANALOG_IN_10', label: 'Analog Ch 10 Line In', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'XLR-F', color: '#10B981' },
@@ -165,7 +168,7 @@ export const BUILTIN_DEVICES = [
     ru: 'Desktop',
     width: 240,
     height: 140,
-    source: 'discovered',
+    source: 'library',
     ports: [
       { id: 'NET_ETH', label: '10/100BASE-T Ethernet', side: 'left', dir: 'Bidi', format: 'Gigabit PoE+', connector: 'RJ45', color: '#38BDF8' },
       { id: 'HDMI_OUT', label: 'HDMI 1.4b (1080p60)', side: 'right', dir: 'Out', format: 'HDMI 2.1', connector: 'HDMI', color: '#A855F7' },
@@ -183,7 +186,7 @@ export const BUILTIN_DEVICES = [
     ru: 'Puck',
     width: 220,
     height: 130,
-    source: 'discovered',
+    source: 'library',
     ports: [
       { id: 'WIFI_CAST', label: 'WiFi 802.11ac (2.4/5GHz)', side: 'left', dir: 'In', format: 'RF Coax', connector: 'Blank', color: '#38BDF8' },
       { id: 'AUDIO_ANALOG', label: '3.5mm Stereo Analog Out', side: 'right', dir: 'Out', format: 'Analog Audio', connector: 'TRS', color: '#10B981' },
@@ -201,7 +204,7 @@ export const BUILTIN_DEVICES = [
     ru: '3U Bench',
     width: 280,
     height: 170,
-    source: 'discovered',
+    source: 'library',
     ports: [
       { id: 'INPUT_HI', label: 'Analyzer Input HI (Differential)', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'BNC', color: '#10B981' },
       { id: 'INPUT_LO', label: 'Analyzer Input LO (Differential)', side: 'left', dir: 'In', format: 'Analog Audio', connector: 'BNC', color: '#10B981' },
@@ -392,6 +395,8 @@ export function cloneDevice(device, newName) {
     clone.displayName = `${clone.displayName} (Copy)`;
   }
   clone.source = 'custom';
+  delete clone.identity;   // a copy is not the discovered unit: no MAC / serial of its own
+  delete clone.live;
   return clone;
 }
 
@@ -404,6 +409,7 @@ export function formatColorForSignal(format) {
     case 'MADI':
     case 'Gigabit PoE+':
     case '10GbE SFP+':
+    case 'Ethernet / IP':
       return '#38BDF8'; // sky cyan
     case 'HDMI 2.1':
     case '12G-SDI':

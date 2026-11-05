@@ -1,0 +1,4 @@
+{
+  "_about": "Which discovered things Block Buddy offers as devices. Tunables only — no device list lives in the code. kinds: case-insensitive substrings of a thing's protocol, scanner kind or device_class (APKSoftapp.discovered); empty means every thing the bus knows.",
+  "kinds": []
+}

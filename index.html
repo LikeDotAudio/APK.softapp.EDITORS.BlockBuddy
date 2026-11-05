@@ -8,6 +8,7 @@
   <title>Block Buddy & Device Schematic Symbol Editor</title>
   <link rel="stylesheet" href="./vendor/apk-contracts/apk-tokens.css">
   <link rel="stylesheet" href="./css/theme.css">
+  <link rel="stylesheet" href="./vendor/apk-table/apk-table.css">
   <style>
     .block-editor-container {
       display: flex;
@@ -95,6 +96,10 @@
       transition: background-color 0.15s ease;
     }
 
+    [data-apk-state="good"] { color: var(--apk-state-good, #10B981) !important; }
+    [data-apk-state="kinda"] { color: var(--apk-state-kinda, #F59E0B) !important; }
+    [data-apk-state="dead"] { color: var(--apk-state-dead, #EF4444) !important; }
+
     .port-item-row.selected {
       background: rgba(244, 144, 44, 0.15) !important;
     }
@@ -176,11 +181,12 @@
     <div class="window-title-group">
       <span class="window-dot"></span>
       <span class="window-title">Block Buddy & Device Schematic Symbol Editor</span>
-      <span class="window-pill" id="device-source-badge">⚡ DISCOVERED BENCH DEVICE</span>
+      <span class="window-pill" id="device-source-badge">📦 PRO AV TEMPLATE</span>
+      <span class="window-pill-category" id="discovery-status" role="status">Reading the bus…</span>
       <span class="window-pill-category" id="device-kind-badge">Audio DSP</span>
     </div>
     <div class="window-actions">
-      <button class="btn btn-secondary btn-sm" id="btn-sync-discovered" title="Reload live inventory from Discovered Project">
+      <button class="btn btn-secondary btn-sm" id="btn-sync-discovered" title="Re-read the devices the bus has discovered">
         <span class="btn-icon">⚡</span> Sync Discovered
       </button>
       <button class="btn btn-secondary btn-sm" id="btn-ingest" title="Ingest any JSON or text with inputs/outputs/connections">
@@ -293,23 +299,7 @@
 
     <!-- Data Table -->
     <div class="data-table-container">
-      <table class="pin-table">
-        <thead>
-          <tr>
-            <th class="col-idx text-center">#</th>
-            <th style="width: 140px;">Pin Identifier</th>
-            <th>Display Label</th>
-            <th style="width: 110px;">Chassis Side</th>
-            <th style="width: 110px;">Direction</th>
-            <th style="width: 150px;">Signal Format</th>
-            <th style="width: 140px;">CAD Connector</th>
-            <th class="col-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="pin-table-body">
-          <!-- Live editable rows populated by BlockBuddyApp -->
-        </tbody>
-      </table>
+      <div id="pin-table"></div>
     </div>
   </section>
 
@@ -356,6 +346,10 @@
   <!-- Vector CAD Connector Symbol Sheet (Loaded for visual rendering) -->
   <div id="cad-symbols-container" style="display: none;"></div>
 
+  <script src="./vendor/apk-contracts/apk-contracts.global.js"></script>
+  <script src="/FrontEnd/shared/apk-bus.js"></script>
+  <script src="./vendor/apk-softapp/apk-softapp.js"></script>
+  <script src="./vendor/apk-table/apk-table.js"></script>
   <script type="module" src="./js/blockBuddyApp.js"></script>
 </body>
 </html>
