@@ -4,7 +4,6 @@
 import { connectBlockHost, saveMeta, mergeDiscovered } from './blockHost.js';
 import { BlockDefinitionModel } from './blockModel.js';
 import {
-  BUILTIN_DEVICES,
   DEVICE_CATEGORIES,
   SIGNAL_FORMATS,
   CAD_CONNECTORS,
@@ -19,7 +18,8 @@ import { partToBlockDevice } from './bimPart.js';
 export class BlockBuddyApp {
   constructor(S) {
     this.S = S;
-    this.devices = [...BUILTIN_DEVICES];
+    // Nothing ships in the source: a blank to start, then the bench's devices from the BIM library.
+    this.devices = [createBlankDevice('CUSTOM_DEVICE', 'Custom', 'Device')];
     this.activeDeviceId = this.devices[0].id;
     this.activeFilter = 'all';
     this.selectedPortIndex = null;
@@ -42,6 +42,7 @@ export class BlockBuddyApp {
     S.inheritTheme();
     this.render();
     this.readDiscovered();
+    this.loadBench();
   }
 
   /** After an edit: the CAD hears blockChanged (standalone, nothing is sent). */
@@ -420,6 +421,30 @@ export class BlockBuddyApp {
   }
 
   /* Discovered devices are the things the bus knows (APKSoftapp.discovered), never a list of our own. */
+  /** The bench's online devices, each as its BIM library part with every pin. */
+  async loadBench() {
+    try {
+      const r = await fetch('/api/bim/instances?state=online');
+      if (!r.ok) return;
+      const ids = [...new Set((await r.json()).items.map(i => i.part?.id).filter(Boolean))];
+      if (!ids.length) return;
+      const q = await fetch(`/api/bim/parts?full=1&limit=200&id=${ids.map(encodeURIComponent).join(',')}`);
+      if (!q.ok) return;
+      const parts = (await q.json()).items;
+      const have = new Set(this.devices.map(d => d.bimId).filter(Boolean));
+      const fresh = parts.filter(p => !have.has(p.id) && (p.ports || []).length).map(partToBlockDevice);
+      if (!fresh.length) return;
+      const onlyBlank = this.devices.length === 1 && !this.devices[0].ports?.length && !this.devices[0].bimId;
+      this.devices.push(...fresh);
+      if (onlyBlank) {
+        this.activeDeviceId = fresh[0].id;
+        this.block.loadDevice(fresh[0]);
+      }
+      this.populateDevicePicker();
+      this.render();
+    } catch (_) { /* no library on this host: the blank and the 📚 button's absence say so */ }
+  }
+
   async readDiscovered() {
     if (this.discovery) {
       this.applyDiscovered(this.discovery.things());

@@ -5,8 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { BlockDefinitionModel } from '../js/blockModel.js';
+import { BUILTIN_DEVICES } from './fixtures/builtinDevices.mjs';
 import {
-  BUILTIN_DEVICES,
   createBlankDevice,
   cloneDevice,
   CAD_CONNECTORS,
