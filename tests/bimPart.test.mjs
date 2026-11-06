@@ -37,3 +37,18 @@ test('the block model loads it', () => {
   m.loadDevice(partToBlockDevice(PART));
   assert.ok(JSON.stringify(m.toJSON()).includes('Core 110f'));
 });
+
+test('a block from a pick keeps the part and its BIM reference, and saves them (ROAD-3572)', () => {
+  const ref = { part: 'qsc/core-110f', url: 'http://apk.local:8160/api/bim/parts/qsc/core-110f', rev: 'abc' };
+  const d = partToBlockDevice(PART, ref);
+  assert.deepEqual(d.bimRef, ref);
+  const m = new BlockDefinitionModel();
+  m.loadDevice(d);
+  const j = m.toJSON();
+  assert.equal(j.bimId, 'qsc/core-110f');
+  assert.deepEqual(j.bimRef, ref);
+  const old = new BlockDefinitionModel();
+  old.loadDevice({ name: 'X', make: 'Typed', model: 'By hand', ports: [] });
+  assert.equal(old.toJSON().make, 'Typed', 'a typed make from before stays readable');
+  assert.equal(old.toJSON().bimRef, undefined);
+});

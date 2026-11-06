@@ -9,7 +9,6 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { CAD_CONNECTORS, SIGNAL_FORMATS, connectorIconId, formatColorForSignal, createBlankDevice } from '../js/deviceCatalog.js';
 import { CAD_SYMBOLS_SVG_SHEET } from '../js/cadConnectorSymbols.js';
 import { VOCABULARY } from '../js/vocabulary.js';
-import { mountLibraryButton } from '../js/libraryPicker.js';
 
 const V = globalThis.APKVocabulary;
 const config = JSON.parse(readFileSync(new URL('../config/vocabulary.json', import.meta.url), 'utf8'));
@@ -53,44 +52,9 @@ test('no connector, format or device list is typed into the app source', () => {
   for (const f of readdirSync(new URL('../js/', import.meta.url))) assert.doesNotMatch(read(f), /BUILTIN_DEVICES/, f);
 });
 
-/* A DOM just big enough for the library button. */
-function fakeAnchor() {
-  const before = [];
-  return { before: (n) => before.push(n), placed: before };
-}
-const doc = {
-  createElement: (tag) => ({ tag, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, textContent: '', title: '' }),
-};
-
-test('📚 Library: the BIM picker\'s button goes before + New Device', async () => {
-  const anchor = fakeAnchor();
-  const picked = [];
-  const r = await mountLibraryButton(anchor, (p) => picked.push(p), {
-    doc, load: async () => ({ libraryButton: (opts, onPick) => ({ opts, click: () => onPick({ id: 'part-1' }) }) }),
-  });
-  assert.equal(r.ok, true);
-  assert.equal(anchor.placed[0], r.button);
-  r.button.click();
-  assert.deepEqual(picked, [{ id: 'part-1' }]);
-});
-
-test('📚 Library: no /api/bim says so on screen, and adds no devices of its own', async () => {
-  const anchor = fakeAnchor();
-  const r = await mountLibraryButton(anchor, () => assert.fail('nothing to pick'), {
-    doc, load: async () => { throw new TypeError('Failed to fetch dynamically imported module: /api/bim/ui/picker.js'); },
-  });
-  assert.equal(r.ok, false);
-  assert.equal(anchor.placed.length, 1);
-  assert.match(r.notice.textContent, /No BIM library on this host/);
-  assert.equal(r.notice.attrs['data-apk-state'], 'dead');
-  assert.equal(r.notice.attrs.role, 'status');
-  assert.match(r.notice.title, /Failed to fetch/);
-});
-
-test('📚 Library: the app mounts the picker through libraryPicker.js, never a silent catch', (t) => {
+test('📚 Library: the app calls up the shared BIM picker (bimLibrary.js), not the old /api/bim/ui/picker.js, and makes no blank typed device', () => {
   const src = read('blockBuddyApp.js');
-  // The call site landed separately (js/blockBuddyApp.js held another session's work); until then, say so.
-  if (!/from '\.\/libraryPicker\.js'/.test(src)) return t.skip('js/blockBuddyApp.js does not use js/libraryPicker.js yet');
-  assert.match(src, /mountLibraryButton\(this\.btnNewDevice/);
-  assert.doesNotMatch(src, /import\('\/api\/bim\/ui\/picker\.js'\)[\s\S]{0,600}\.catch\(\(\) => \{\}\)/);
+  assert.match(src, /from '\.\/bimLibrary\.js'/);
+  assert.doesNotMatch(src, /\/api\/bim\/ui\/picker\.js/);
+  assert.doesNotMatch(src, /createBlankDevice\('CUSTOM_DEVICE', 'Custom', 'Device'\);\n\s*this\.devices\.push/);
 });

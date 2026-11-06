@@ -29,7 +29,7 @@ function sideOf(port) {
 
 const pinId = (text) => String(text).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'PIN';
 
-export function partToBlockDevice(part) {
+export function partToBlockDevice(part, bimRef = null) {
   const ports = [];
   const used = new Set();
   for (const p of part.ports || []) {
@@ -64,6 +64,8 @@ export function partToBlockDevice(part) {
     height: Math.min(1200, Math.max(160, 40 + tall * 22)),
     source: 'library',
     bimId: part.id,
+    // the BIM reference {part, url, rev} (ROAD-3572): the pick's, else the part's own
+    bimRef: bimRef || (part.ref && part.ref.part ? { part: part.ref.part, url: part.ref.url || '', rev: part.ref.rev || '' } : null),
     ports
   };
 }

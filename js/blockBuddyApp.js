@@ -12,7 +12,7 @@ import {
   formatColorForSignal,
 } from './deviceCatalog.js';
 import { CAD_SYMBOLS_SVG_SHEET } from './cadConnectorSymbols.js';
-import { mountLibraryButton } from './libraryPicker.js';
+import { libraryButton, bimFields, readLibraryDrop } from './bimLibrary.js';
 import { interpretToBlock } from './universalBlockInterpreter.js';
 import { partToBlockDevice } from './bimPart.js';
 
@@ -187,27 +187,23 @@ export class BlockBuddyApp {
       this.selectDeviceById(e.target.value);
     });
 
-    this.btnNewDevice?.addEventListener('click', () => {
-      const newDev = createBlankDevice('CUSTOM_DEVICE', 'Custom', 'Device');
-      this.devices.push(newDev);
-      this.activeDeviceId = newDev.id;
-      this.block.loadDevice(newDev);
-      this.populateDevicePicker();
-      this.render();
-      this.changed();
-    });
-
-    // 📚 Library: any device in the BIM library becomes a block, pins and all;
-    // no library on this host says so where the button would be (js/libraryPicker.js).
-    mountLibraryButton(this.btnNewDevice, (part) => {
-      const dev = partToBlockDevice(part);
-      this.devices.push(dev);
+    // 📚 Library (ROAD-3572): every new device is a BIM part, pins and all, with its BIM
+    // reference — no blank device with a typed make and model (the old + New Device).
+    this.addFromLibrary = (items) => {
+      let dev = null;
+      for (const it of items) {
+        dev = partToBlockDevice(it.bim, bimFields(it).bimRef);
+        this.devices.push(dev);
+      }
+      if (!dev) return;
       this.activeDeviceId = dev.id;
       this.block.loadDevice(dev);
       this.populateDevicePicker();
       this.render();
       this.changed();
-    });
+    };
+    this.btnNewDevice?.replaceWith(libraryButton(this.addFromLibrary, {
+      className: 'btn btn-secondary btn-sm', title: 'Add a device from the BIM library as a block' }));
 
     this.btnCloneDevice?.addEventListener('click', () => {
       const current = this.devices.find((d) => d.id === this.activeDeviceId);
@@ -408,6 +404,9 @@ export class BlockBuddyApp {
 
     window.addEventListener('drop', (e) => {
       e.preventDefault();
+      // a part dragged from the BIM library becomes a block (ROAD-3572)
+      const part = readLibraryDrop(e);
+      if (part) { this.addFromLibrary([part]); return; }
       const file = e.dataTransfer.files?.[0];
       if (file) this.readFile(file);
     });
@@ -430,6 +429,7 @@ export class BlockBuddyApp {
       dev.displayName = `${this.block.make} ${this.block.model}`;
       dev.make = this.block.make;
       dev.model = this.block.model;
+      if (this.block.bimRef) { dev.bimId = this.block.bimId; dev.bimRef = this.block.bimRef; }
       dev.kind = this.block.kind;
       dev.ru = this.block.ru;
       dev.width = this.block.width;
@@ -456,7 +456,7 @@ export class BlockBuddyApp {
       if (!q.ok) return fail(q);
       const parts = (q.data && q.data.items) || [];
       const have = new Set(this.devices.map(d => d.bimId).filter(Boolean));
-      const fresh = parts.filter(p => !have.has(p.id) && (p.ports || []).length).map(partToBlockDevice);
+      const fresh = parts.filter(p => !have.has(p.id) && (p.ports || []).length).map((p) => partToBlockDevice(p));
       if (!fresh.length) return;
       const onlyBlank = this.devices.length === 1 && !this.devices[0].ports?.length && !this.devices[0].bimId;
       this.devices.push(...fresh);

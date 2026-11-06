@@ -39,6 +39,8 @@ export class BlockDefinitionModel {
     this.height = Number(dev.height) || this.height;
     this.source = dev.source || this.source;
     this.identity = dev.identity || null;
+    this.bimId = dev.bimId || '';          // the BIM part and its reference (ROAD-3572)
+    this.bimRef = dev.bimRef || null;
 
     if (Array.isArray(dev.ports)) {
       this.ports = dev.ports.map((p, idx) => ({
@@ -160,6 +162,8 @@ export class BlockDefinitionModel {
       source: this.source,
       ports: this.ports,
       ...(this.identity ? { identity: this.identity } : {}),
+      ...(this.bimId ? { bimId: this.bimId } : {}),
+      ...(this.bimRef ? { bimRef: this.bimRef } : {}),
       timestamp: new Date().toISOString()
     };
   }

@@ -212,8 +212,8 @@
         </select>
       </div>
 
-      <button class="btn btn-secondary btn-sm" id="btn-new-device" title="Create a new device from scratch">
-        + New Device
+      <button class="btn btn-secondary btn-sm" id="btn-new-device" data-apk-library title="Add a device from the BIM library as a block (Ctrl+Shift+L)">
+        📚 Library
       </button>
       <button class="btn btn-secondary btn-sm" id="btn-clone-device" title="Clone active device into custom library">
         📋 Clone
@@ -227,11 +227,11 @@
       </div>
       <div class="form-group-inline">
         <label for="input-device-make">MAKE:</label>
-        <input type="text" id="input-device-make" class="input input-sm" style="width: 110px;" value="APK Audio">
+        <input type="text" id="input-device-make" class="input input-sm" style="width: 110px;" value="APK Audio" readonly title="The part's maker, from the BIM library (📚 Library)">
       </div>
       <div class="form-group-inline">
         <label for="input-device-model">MODEL:</label>
-        <input type="text" id="input-device-model" class="input input-sm" style="width: 130px;" value="preMO Mark II">
+        <input type="text" id="input-device-model" class="input input-sm" style="width: 130px;" value="preMO Mark II" readonly title="The part's model, from the BIM library (📚 Library)">
       </div>
       <div class="form-group-inline">
         <label for="select-device-kind">KIND:</label>
