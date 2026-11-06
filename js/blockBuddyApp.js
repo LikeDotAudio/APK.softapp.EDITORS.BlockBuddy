@@ -1,7 +1,8 @@
 // Part of the APK.audio project — http://APK.audio — made by Anthony Kuzub
 // MIT Licence. Free, for everyone, for ever. Full text in LICENSE at the root.
 
-import { connectBlockHost, saveMeta, mergeDiscovered } from './blockHost.js';
+import { connectBlockHost, saveMeta, saveBlockModel, mergeDiscovered } from './blockHost.js';
+import { blockFromIfc, isIfcText, schemaOf } from './blockIfc.js';
 import { BlockDefinitionModel } from './blockModel.js';
 import {
   DEVICE_CATEGORIES,
@@ -32,14 +33,14 @@ export class BlockBuddyApp {
       name: 'Block Buddy',
       does: 'Builds a device schematic block: its ports on four sides (inputs left, outputs right, bus/clock top, power bottom), for the CAD.',
       inputs: [
-        { name: 'Device block', from: 'the CAD (when opened from a drawing), or Open: .json / .txt / .csv / .sch', kind: 'file' },
+        { name: 'Device block', from: 'the CAD (when opened from a drawing), or Open: .json / .txt / .csv / .sch, or its .ifc twin (IFC4X3_ADD2)', kind: 'file' },
         { name: 'Any port list', from: 'Ingest (paste JSON, CSV or a wirelist) or a file dropped on the page', kind: 'file' },
         { name: 'Bench devices', from: 'the BIM library: /api/bim/instances?state=online and their parts (when the host serves it)' },
         { name: 'Device library', from: 'the BIM library picker (Library button, when the host serves it)' },
         { name: 'Discovered devices', from: 'the bus: things scanners and agents found (kinds in config/discovery.json)', kind: 'bus' },
       ],
       outputs: [
-        { name: 'Device block', to: 'the CAD on Save and on every edit; standalone Save downloads a .json', kind: 'file' },
+        { name: 'Device block', to: 'the CAD on Save and on every edit; standalone, Save Model: the .json and its .ifc twin', kind: 'file' },
       ],
       controls: [
         { name: 'Device picker / New / Clone / Library', how: 'choose, start, copy or import the device being drawn' },
@@ -49,7 +50,7 @@ export class BlockBuddyApp {
         { name: 'Ingest', how: 'paste data (or load a preset) and Parse & Build' },
         { name: 'Discovered / Open / Save / Close', how: 'header buttons' },
       ],
-      problems: ['bad_input', 'file_unreadable', 'not_in_cad', 'bus_missing', 'http_server_error', 'bad_json'],
+      problems: ['bad_input', 'file_unreadable', 'not_in_cad', 'bus_missing', 'http_server_error', 'bad_json', 'save_failed'],
     });
 
     this.initElements();
@@ -563,10 +564,28 @@ export class BlockBuddyApp {
     this.render();
   }
 
+  /** Save & Return: into the CAD; standalone, Save Model — the .json and its .ifc twin (js/blockIfc.js). */
   saveBlock() {
     this.syncActiveDeviceState();
-    const block = this.block.toJSON();
-    this.host.save(block, saveMeta(block));
+    return saveBlockModel(this.S, this.host, this.block.toJSON(), { onRetry: () => this.saveBlock() });
+  }
+
+  /** An IFC model's device (js/blockIfc.js); false (and a problem card) when it holds none. */
+  loadIfc(text, name, retry) {
+    let block;
+    try {
+      block = blockFromIfc(text);
+    } catch (err) {
+      this.S.showProblem('bad_input', {
+        subject: name, detail: err && err.message ? err.message : String(err),
+        fix: ['Open an .ifc saved by Block Buddy, or one with a device that has its ports nested on it (IfcDistributionPort).'],
+        onRetry: retry,
+      });
+      return false;
+    }
+    this.handleBlockLoaded(block, { title: `${name} · ${schemaOf(text)}` });
+    this.changed();
+    return true;
   }
 
   render() {
@@ -856,7 +875,7 @@ export class BlockBuddyApp {
   promptOpen() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json,.txt,.csv,.sch';
+    input.accept = '.json,.txt,.csv,.sch,.ifc';
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -872,7 +891,9 @@ export class BlockBuddyApp {
       subject: file.name, detail: reader.error && reader.error.message, onRetry: retry,
     });
     reader.onload = (re) => {
-      this.ingestArbitraryData(re.target.result, { title: file.name, retry });
+      const text = re.target.result;
+      if (/\.ifc$/i.test(file.name) || isIfcText(text)) this.loadIfc(text, file.name, retry);
+      else this.ingestArbitraryData(text, { title: file.name, retry });
     };
     reader.readAsText(file);
   }

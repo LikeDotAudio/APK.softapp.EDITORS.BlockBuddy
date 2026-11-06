@@ -5,6 +5,8 @@
 // off the bus (APKSoftapp.discovered) as a device to draw. No DOM here: the
 // tests drive it.
 
+import { blockToIfc } from './blockIfc.js';
+
 export const EDITOR = 'Block Buddy';
 export const BLOCK_TYPE = 'schematic_block';
 
@@ -18,6 +20,19 @@ export function saveMeta(block) {
     title: `${block.displayName || name} (${(block.ports || []).length} Ports)`,
     filename: `block_${name.toLowerCase()}`,
   };
+}
+
+/**
+ * Save: inside the CAD, the block back to the drawing (host.save); standalone, Save Model — the block's
+ * .json AND its .ifc twin (js/blockIfc.js), both or neither. Resolves to 'cad' | 'download' | 'directory'
+ * | '' (failed or cancelled; a failure shows its problem card).
+ */
+export async function saveBlockModel(S, host, block, { onRetry } = {}) {
+  const meta = saveMeta(block);
+  if (host.embedded || typeof S.saveModel !== 'function') return host.save(block, meta);
+  const r = await S.saveModel(block, { name: meta.filename, toIfc: (b) => blockToIfc(b, { name: meta.filename }) });
+  if (!r.ok && !r.cancelled) S.showProblem(r.problem || 'save_failed', { onRetry });
+  return r.ok ? r.via : '';
 }
 
 /**
